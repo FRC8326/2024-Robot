@@ -120,7 +120,7 @@ public class Robot extends TimedRobot {
   @Override
   public void teleopPeriodic() {
 
-    if(controller.getYButton()) {
+    if(controller.getYButtonPressed()) {
       if(turtleMode) {
         turtleMode = false;
       }
@@ -130,39 +130,32 @@ public class Robot extends TimedRobot {
     }
 
 
-    double movementDeadzone = 0.3;
+    double movementDeadzone = 0.18;
+
     //0.6,1
-    double maxSpeedX = 1.5, maxSpeedY = 1.5, maxSpeedAngle = 1.5;
+    double maxSpeedX = 1.6, maxSpeedY = 1.6, maxSpeedAngle = 1.6;
     double csX = 0, csY = 0, csAngle = 0;
     if(turtleMode) {
       maxSpeedX = 0.2;
       maxSpeedY = 0.2;
       maxSpeedAngle = 0.5;
     }
-    //X an Y are reversed and it is CORRECT! it make field oriented drive work.
-    if(controller.getLeftX() > movementDeadzone) {
-      csX = controller.getLeftX() * maxSpeedY;
-    }
-    else if(controller.getLeftX() < -movementDeadzone) {
-      csX = controller.getLeftX() * maxSpeedY;
+   
+    if(controller.getLeftY() < -movementDeadzone || controller.getLeftY() > movementDeadzone) {
+      csY = controller.getLeftY() * maxSpeedY;
     }
 
-    if(controller.getLeftY() > movementDeadzone) {
-      csY = controller.getLeftY() * maxSpeedX;
-    }
-    else if(controller.getLeftY() < -movementDeadzone) {
-      csY = controller.getLeftY() * maxSpeedX;
+    if(controller.getLeftX() < -movementDeadzone || controller.getLeftX() > movementDeadzone) {
+      csX = controller.getLeftX() * maxSpeedX;
     }
 
-    if(controller.getRightX() > movementDeadzone) {
+    if(controller.getRightX() < -movementDeadzone || controller.getRightX() > movementDeadzone) {
       csAngle = controller.getRightX() * maxSpeedAngle;
     }
-    else if(controller.getRightX() < -movementDeadzone) {
-      csAngle = controller.getRightX() * maxSpeedAngle;
-    }
-    
+
+   
     //Shuffled around the axes to make the actual front the front.
-    ChassisSpeeds cs = new ChassisSpeeds(csY,csX,csAngle);
+    ChassisSpeeds cs = new ChassisSpeeds(csX,-csY,csAngle);
     swerveDrive.driveFieldOriented(cs);
   
     //System.out.println(SwerveMath.calculateMetersPerRotation(0.1, 6.75, 1));
