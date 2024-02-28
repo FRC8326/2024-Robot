@@ -21,6 +21,7 @@ import java.io.IOException;
 
 import com.ctre.phoenix.sensors.CANCoder;
 import com.revrobotics.CANSparkMax;
+import com.revrobotics.RelativeEncoder;
 
 import edu.wpi.first.wpilibj.Filesystem;
 import swervelib.parser.SwerveParser;
@@ -35,13 +36,16 @@ import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import com.revrobotics.CANSparkMax;
 import com.revrobotics.CANSparkLowLevel.MotorType;
+//import edu.wpi.first.util.sendable.Sendable;
+//import java.lang.AutoCloseable;
+//import com.playingwithfusion.TimeOfFlight;
 
 
 /**
  * The VM is configured to automatically run this class, and to call the functions corresponding to
  * each mode, as described in the TimedRobot documentation. If you change the name of this class or
  * the package after creating this project, you must also update the build.gradle file in the
- * project.
+ * project.arm_left
  */
 
 
@@ -55,12 +59,16 @@ public class Robot extends TimedRobot {
   private final CANSparkMax feeder = new CANSparkMax(4, MotorType.kBrushless);
   private final CANSparkMax intake = new CANSparkMax(5, MotorType.kBrushless);
   private final CANSparkMax intake2 = new CANSparkMax(6, MotorType.kBrushless);
+  private final RelativeEncoder leftArmEncoder = arm_left.getEncoder();
   private RobotContainer m_robotContainer;
   private SwerveDrive swerveDrive;
   private final XboxController controller = new XboxController(0);
   private final XboxController controller2 = new XboxController(1);
   private boolean turtleMode = false;
   private final Timer m_timer = new Timer();
+  private final Timer s_timer = new Timer();
+  private boolean isShooting = false;
+ // private final TimeOfFlight amogus = new TimeOfFlight(15);
 
   //PID Loop variables
   double lastTime = 0;
@@ -69,12 +77,17 @@ public class Robot extends TimedRobot {
   double ll_x = 0;
   double ll_y = 0;
   double ll_area = 0;
-  double Kp = 0;
-  double Ki = 0;
   double command = 0;
   double commandAngle = 0;
   double commandY = 0;
   double commandArm = 0;
+  double shootTimer = 0;
+  double armGoal = 0;
+  double Kp2 = 0; 
+  double Ki2 = 0;
+  double armTarget = 0; 
+  boolean armPresetRunning = false;
+  double armSetpoint = 0; 
 
 
   // CANCoderSwerve1 = new CANCoderSwerve(34);
@@ -84,7 +97,7 @@ public class Robot extends TimedRobot {
 
 
 
-  public double PIDLoop(double sensorReading, double Kp, double Ki, double target, double lastTime) { 
+  public double PIDLoop(double sensorReading, double Kp, double Ki, double target) { 
     double elapsedTime = (m_timer.get() - lastTime);
     double error = target - sensorReading;
     double cumulativeError =+ error * elapsedTime;
@@ -93,6 +106,65 @@ public class Robot extends TimedRobot {
     return command; 
   }
 
+  public void armControl(double armGoal) {
+      System.out.println("encoder " + leftArmEncoder.getPosition());
+      Kp2 = .01;
+      Ki2 = 0.0;
+      armTarget = armGoal; 
+      PIDLoop(leftArmEncoder.getPosition(), Kp2, Ki2, armTarget);
+      double armCommand = command;
+      System.out.println("command " + armCommand);
+      if (Math.abs(armGoal - leftArmEncoder.getPosition()) < 1){
+        armPresetRunning = false;
+       }
+      arm_left.set(armCommand);
+      arm_right.set(-armCommand);
+     
+  }
+
+  public void autoSpeaker() {
+    double target_area = .55; //.53
+      double target_x = 0;
+      double ll_deadzoneA = .01;
+      double ll_deadzoneXY = 1.5; 
+      //double target_y = 0;
+      lastTime = m_timer.get();
+
+    //control forward and back
+    if (ll_area < (target_area - ll_deadzoneA) || ll_area > (target_area + ll_deadzoneA)) {
+      double Kp = .77; //.81
+      double Ki = .09; //.09
+      PIDLoop(ll_area, Kp, Ki, target_area);
+      commandY = command;
+    } 
+
+  //control left and right   
+
+  if (ll_x < (target_x - ll_deadzoneXY) || ll_x > (target_x + ll_deadzoneXY)) {
+       double Kp = .020;
+       double Ki = .002;
+       PIDLoop(ll_x, Kp, Ki, target_x);
+       commandAngle = command;
+     }
+
+     //stop if can't see a tag
+     if (ll_area <= 0.0002) {
+       runningPID = false;
+     }
+
+     //drive and stop if command is too low
+     if (Math.abs(commandAngle) < .05) {
+       commandAngle = 0;
+     }
+
+     //System.out.println("Command:" + commandY);
+     if (Math.abs(commandY) < 0.03) {
+      commandY = 0;
+     }
+     ChassisSpeeds csPID = new ChassisSpeeds(0, -commandY, -commandAngle);
+     swerveDrive.driveFieldOriented(csPID);
+  }
+  
   /**
    * This function is run when the robot is first started up and should be used for any
    * initialization code.
@@ -151,18 +223,19 @@ public class Robot extends TimedRobot {
   /** This function is called periodically during autonomous. */
   @Override
   public void autonomousPeriodic() {
-    /*ChassisSpeeds cs_auto = new ChassisSpeeds(1,0,0);
-    
-     if (timer < 3){
+    Timer autoTimer = new Timer();
+    ChassisSpeeds cs_auto = new ChassisSpeeds(1,0,0);
+    boolean completed = false;
+      if (autoTimer.get() < 3){
         swerveDrive.driveFieldOriented(cs_auto);
       }
-      cs_auto = ChassisSpeeds(0,0,0);
-      swerveDrive.driveFieldOriented(cs_auto);
-      if (timer > 3.1 && timer < 15) {
-        //auto shoot
+      swerveDrive.driveFieldOriented(zeroSpeed);
+      if ((autoTimer.get() > 3.1) && (autoTimer.get() < 15) && !completed) {
+         completed = true;
+         //shoot
       }
      
-     */
+     
   }
 
   @Override
@@ -175,7 +248,7 @@ public class Robot extends TimedRobot {
       m_autonomousCommand.cancel();
     }
     //CANCoderSwerve(int id); 13 33 36 23
- 
+    s_timer.start();
     
   }
 
@@ -183,33 +256,51 @@ public class Robot extends TimedRobot {
   @Override
   public void teleopPeriodic() {
 
-    SmartDashboard.putNumber("test", 2);
+    //To get Limelight Data
+    NetworkTable table = NetworkTableInstance.getDefault().getTable("limelight");
+    NetworkTableEntry tx = table.getEntry("tx");
+    NetworkTableEntry ty = table.getEntry("ty");
+    NetworkTableEntry ta = table.getEntry("ta");
+    //read values periodically
+    ll_x = tx.getDouble(0.0);
+    ll_y = ty.getDouble(0.0);
+    ll_area = ta.getDouble(0.0);
+    table.getEntry("pipeline").setValue(0);
+     //post to smart dashboard periodically
+    SmartDashboard.putNumber("LimelightX", ll_x);
+    SmartDashboard.putNumber("LimelightY", ll_y);
+    SmartDashboard.putNumber("LimelightArea", ll_area);
+    System.out.println("Area: " + ll_area + " Angle: " + ll_x);
+    if (ll_area <= 0.002) {
+      SmartDashboard.putBoolean("Tag?", true);
+    } else {
+      SmartDashboard.putBoolean("Tag?", false);
+    }
 
-    //right trigger hold down
+    //right trigger hold down for turtle mode
     if(controller.getRightBumper()) {
       turtleMode = true;
   } else {
       turtleMode = false;
   }
-
-    //left bumper intake
+  
+    //left bumper intake //Press hold // change to auto shutoff once sensor is attatched
     if(controller.getLeftBumper() || controller2.getLeftBumper()) {
-      System.out.println("Test");
       intake.set(0.5);
       intake2.set(-0.5);
       feeder.set(.5);
-    } else {
+    } 
+    else if(isShooting) {
+      intake.set(0);
+      intake2.set(0);
+    }
+    else {
       intake.set(0);
       intake2.set(0);
       feeder.set(0);
-   }
-
-   if (controller2.getLeftTriggerAxis() > .5) {
-      feeder.set(1);
-   }
+    }
 
     double movementDeadzone = 0.18;
-    //0.6,1
     double maxSpeedX = 1.6, maxSpeedY = 1.6, maxSpeedAngle = 1.6;
     double csX = 0, csY = 0, csAngle = 0;
     if(turtleMode) {
@@ -233,17 +324,37 @@ public class Robot extends TimedRobot {
       csAngle = controller.getRightX() * maxSpeedAngle;
     }
 
-    if (controller.getYButton() || controller2.getRightTriggerAxis() > .5) {
-      //add feeder power 
-      System.out.println("hi");
-      shooter.set(1.2);
-    } else if (controller2.getLeftY() > .3) {
+    if (controller.getYButton()) {
+      s_timer.reset();
+      feeder.set(-.05);
+      shooter.set(-.05);
+      shootTimer = s_timer.get();
+      isShooting = true;
+    } else if (controller2.getRightTriggerAxis() > .3) {
       shooter.set(.2);
-    } else {
+    } 
+    else if(isShooting) {
+      
+    }
+    else {
       shooter.set(0);
     }
+  //  System.out.println("Timer: " + s_timer.get() + ", Shoot Timer: " + shootTimer);
+    
+    if(s_timer.get() > (shootTimer + .2) && isShooting) {
+      shooter.set(1.3);
+    }
+    if (s_timer.get() > (shootTimer + 1.6) && isShooting) {
+      feeder.set(1.3);
+    }
+    if(s_timer.get() > (shootTimer + 2) && isShooting) {
+      feeder.set(0);
+      isShooting = false;
+      s_timer.reset();
+    }
+    
 
-
+   
     //Shuffled around the axes to make the actual front the front.
     if(!runningPID) {
       ChassisSpeeds cs = new ChassisSpeeds(csX,-csY,csAngle);
@@ -253,26 +364,6 @@ public class Robot extends TimedRobot {
     //System.out.println(SwerveMath.calculateMetersPerRotation(0.1, 6.75, 1));
     //System.out.println(SwerveMath.calculateDegreesPerSteeringRotation(21.428, 1));
 
-    NetworkTable table = NetworkTableInstance.getDefault().getTable("limelight");
-    NetworkTableEntry tx = table.getEntry("tx");
-    NetworkTableEntry ty = table.getEntry("ty");
-    NetworkTableEntry ta = table.getEntry("ta");
-    //read values periodically
-    ll_x = tx.getDouble(0.0);
-    ll_y = ty.getDouble(0.0);
-    ll_area = ta.getDouble(0.0);
-
-    //post to smart dashboard periodically
-    SmartDashboard.putNumber("LimelightX", ll_x);
-    SmartDashboard.putNumber("LimelightY", ll_y);
-    SmartDashboard.putNumber("LimelightArea", ll_area);
-    System.out.println("Area: " + ll_area + " Angle: " + ll_x);
- 
-    if (ll_area <= 0.002) {
-      SmartDashboard.putBoolean("Tag?", true);
-    } else {
-      SmartDashboard.putBoolean("Tag?", false);
-    }
   
   
   //Limelight auto subroutines  
@@ -283,54 +374,10 @@ public class Robot extends TimedRobot {
    }
 
    if (runningPID == true) {
-      table.getEntry("pipeline").setValue(0);
-      double target_area = .53;
-      double target_x = 0;
-      double ll_deadzoneA = .01;
-      double ll_deadzoneXY = 1.5; 
-      //double target_y = 0;
-      lastTime = m_timer.get();
-
-    //control forward and back
-    if (ll_area < (target_area - ll_deadzoneA) || ll_area > (target_area + ll_deadzoneA)) {
-      System.out.println("1");
-      Kp = .81;
-      Ki = .09;
-      PIDLoop(ll_area, Kp, Ki, target_area, lastTime);
-      commandY = command;
-    } 
-
-  //control left and right   
-
-  if (ll_x < (target_x - ll_deadzoneXY) || ll_x > (target_x + ll_deadzoneXY)) {
-       Kp = .020;
-       Ki = .002;
-       PIDLoop(ll_x, Kp, Ki, target_x, lastTime);
-       commandAngle = command;
-     }
-
-     //stop if can't see a tag
-     if (ll_area <= 0.0002) {
-       runningPID = false;
-     }
-
-     //drive and stop if command is too low
-     if (Math.abs(commandAngle) < .05) {
-       commandAngle = 0;
-     }
-
-     System.out.println("Command:" + commandY);
-     if (Math.abs(commandY) < 0.03) {
-      commandY = 0;
-     }
-     ChassisSpeeds csPID = new ChassisSpeeds(0, -commandY, -commandAngle);
-     swerveDrive.driveFieldOriented(csPID);
-    
-    
+      autoSpeaker();
     }    
 
   //Move arm to shoot
-  //table.getEntry("pipeline").setValue(1);
    /*   if (ll_y < Math.abs(target_y - ll_deadzoneXY)) {
       //?????????
      } 
@@ -345,33 +392,47 @@ public class Robot extends TimedRobot {
 
     //controller 2 commands
 
-    if (controller2.getAButtonPressed() || controller.getXButtonPressed()) {
-        //0 arm 
+    // change back to pressed
+    // 30.95 top, 0.25 bottom
+    /*if (controller2.getAButtonPressed() || controller.getXButtonPressed()) {
+        //0 arm
+        armSetpoint = 10;
+        armPresetRunning = true;
+        
     }
-
+    if (armPresetRunning){
+      armControl(armSetpoint);
+    }
+*/
     if (controller2.getYButton()) {
       arm_left.set(0.1);
       arm_right.set(-0.1);
     } else if (controller2.getBButton()) {
       arm_left.set(-0.1);
       arm_right.set(0.1);
-    } else {
+    } else if (!armPresetRunning) {
       arm_left.set(0);
       arm_right.set(0);
     }
  
-    if (controller2.getXButton()) {
-      // Full arm 
-    } 
+    /*if (controller2.getXButton()) {
+      armPresetRunning = true;
+      armSetpoint = 30;
+    } */
 
     
 
    //reverse intake
    if(controller2.getRightBumper()) {
-      intake.set(-.3);
-      intake2.set(.3);
-      feeder.set(-.3);
+      feeder.set(-.1);
+      shooter.set(-.1);
     } 
+
+
+    if (controller2.getLeftTriggerAxis() > .5){
+      intake.set(-.1);
+      intake2.set(.1);
+    }
 
 
 
