@@ -72,6 +72,7 @@ public class Robot extends TimedRobot {
   private final Timer b_timer = new Timer();
   private final Timer autoTimer = new Timer();
   private boolean isShooting = false;
+  private double autoShootTimer = 0;
  // private final TimeOfFlight amogus = new TimeOfFlight(15);
 
   //PID Loop variables
@@ -114,15 +115,13 @@ public class Robot extends TimedRobot {
   }
 
   public void armControl(double armGoal) {
-      System.out.println("encoder position" + leftArmEncoder.getPosition());
-      Kp2 = .0087;
+      Kp2 = .0095;
       Ki2 = .0044;
       armTarget = armGoal; 
       PIDLoop(leftArmEncoder.getPosition(), Kp2, Ki2, armTarget);
       double armCommand = command;
-      System.out.println("command " + armCommand);
       if (Math.abs(armGoal - leftArmEncoder.getPosition()) < 1){
-        armPresetRunning = false;
+        armPresetRunning = false;     
       }
       arm_left.set(armCommand);
       arm_right.set(-armCommand);
@@ -130,7 +129,11 @@ public class Robot extends TimedRobot {
   }
 
   public void autoShoot() {
-      double autoShootTimer = 0;
+      if(autoTimer.get() > 6.1) {
+        shooter.set(0);
+        feeder.set(0);
+        return;
+      }
       if(!hasReached) {
         b_timer.reset();
         autoShootTimer = b_timer.get();
@@ -139,16 +142,13 @@ public class Robot extends TimedRobot {
       feeder.set(-.05);
       shooter.set(-.05); 
   //  System.out.println("Timer: " + s_timer.get() + ", Shoot Timer: " + shootTimer);
-    
-    if(b_timer.get() > (autoShootTimer + .2)) {
+    System.out.println("b_timer: " + b_timer.get());
+    if(0.2 < b_timer.get() && b_timer.get() < 1.6) {
       shooter.set(1.3);
     }
-    if (b_timer.get() > (autoShootTimer + 1.6)) {
+    else if (1.6 < b_timer.get() && b_timer.get() < 2) {
       feeder.set(1.3);
-    }
-    if(b_timer.get() > (autoShootTimer + 2)) {
-      feeder.set(0);
-      b_timer.reset();
+      shooter.set(1.3);
     }
   }
 
@@ -185,13 +185,13 @@ public class Robot extends TimedRobot {
      //drive and stop if command is too low
      if (Math.abs(commandAngle) < .1) {
        commandAngle = 0;
-       System.out.println("here");
+       //System.out.println("here");
      }
 
      //System.out.println("Command:" + commandY);
      if (Math.abs(commandY) < 0.07) {
         commandY = 0;
-        System.out.println("here2");
+        //System.out.println("here2");
      }
 
      /*if(Math.abs(commandAngle + commandY) < 0.002) {
@@ -293,27 +293,54 @@ public class Robot extends TimedRobot {
   /** This function is called periodically during autonomous. */
   @Override
   public void autonomousPeriodic() {
-    
-    ChassisSpeeds cs_auto = new ChassisSpeeds(0,.3,0);
+    //- is right, + is left
+    ChassisSpeeds cs_autoRight = new ChassisSpeeds(-0.35,0,0);
+    ChassisSpeeds cs_autoLeft = new ChassisSpeeds(0.35,0,0);
+    ChassisSpeeds cs_auto2 = new ChassisSpeeds(0,.35,0);
+
     /*Auto Options:
-     * 1:Shoot, Drive back
+     * 1:Shoot, Drive back Left
+     * 1.5: shoot, drive back, right
      * 2:Shoot, drive back, pick up another ring
      * 3:Shoot, drive back, pick up ring, shoot again
      * 4:Drive back
      */
 
-
-    //Auto option 1: Shoot, drive back
-    /*
-    if (autoTimer.get() < 3){
+    System.out.println(autoTimer.get());
+    //Auto option 1: Shoot, drive back, left
+    /*if (autoTimer.get() < 3.1){
+    
+    } 
+    else if(autoTimer.get() < 6.1){
         autoShoot();
-    } else if (autoTimer.get() < 5){
-       swerveDrive.driveFieldOriented(cs_auto);
+    } else if (autoTimer.get() < 6.6){
+       swerveDrive.driveFieldOriented(cs_autoLeft);
+       feeder.set(0);
+       shooter.set(0);
+    } else if (autoTimer.get() < 10.1){
+       swerveDrive.driveFieldOriented(cs_auto2);
     } else {
       swerveDrive.driveFieldOriented(zeroSpeed);
     }
+*/
+
+    //Auto option 1: Shoot, drive back right
+   if (autoTimer.get() < 3.1){
+    
+    } 
+    else if(autoTimer.get() < 6.1){
+        autoShoot();
+    } else if (autoTimer.get() < 8.5){
+       swerveDrive.driveFieldOriented(cs_autoRight);
+       feeder.set(0);
+       shooter.set(0);
+    } else if (autoTimer.get() < 12){
+       swerveDrive.driveFieldOriented(cs_auto2);
+    } else {
+      swerveDrive.driveFieldOriented(zeroSpeed);
+    }
+
      
-     */
 
    /* //Auto option 2: Shoot, drive back, pick up another ring
       if (autoTimer.get() < 3){
@@ -336,19 +363,21 @@ public class Robot extends TimedRobot {
     /*
      if (autoTimer.get() < 3){
         autoShoot();
-      } else if (autoTimer.get() < 6){
+      } else if (autoTimer.get() < 5){
         swerveDrive.driveFieldOriented(cs_auto);
         intake.set(0.5);
         intake2.set(-0.5);
         feeder.set(.5);
-      } else if (autoTimer.get() < 6.5) {
+      } else if (autoTimer.get() < 5.5) {
         swerveDrive.driveFieldOriented(zeroSpeed);
         intake.set(0);
         intake2.set(0);
         feeder.set(0);
-      } 
-
-      ////!!!!!!! either shoot with subroutine or drive foward and autoshoot
+      } else if (autoTimer.get() < 7.5) {
+        swerveDrive.driveFieldOriented(cs_auto);
+      } else if (autoTimer.get() < 9) {
+        autoShoot();
+      }
      */
 
     //Auto option 3: Drive
@@ -379,6 +408,8 @@ public class Robot extends TimedRobot {
     //CANCoderSwerve(int id); 13 33 36 23
     s_timer.start();
     b_timer.start();
+    shooter.set(0);
+    feeder.set(0);
     
   }
 
@@ -401,7 +432,7 @@ public class Robot extends TimedRobot {
     SmartDashboard.putNumber("LimelightX", ll_x);
     SmartDashboard.putNumber("LimelightY", ll_y);
     SmartDashboard.putNumber("LimelightArea", ll_area);
-    System.out.println("Area: " + ll_area + " Angle: " + ll_x);
+    //System.out.println("Area: " + ll_area + " Angle: " + ll_x);
     if (ll_area <= 0.002) {
       SmartDashboard.putBoolean("Tag?", true);
     } else {
@@ -479,10 +510,10 @@ public class Robot extends TimedRobot {
     if(s_timer.get() > (shootTimer + .2) && isShooting) {
       shooter.set(1.3);
     }
-    if (s_timer.get() > (shootTimer + 1.6) && isShooting) {
+    if (s_timer.get() > (shootTimer + 1.2) && isShooting) {
       feeder.set(1.3);
     }
-    if(s_timer.get() > (shootTimer + 2) && isShooting) {
+    if(s_timer.get() > (shootTimer + 1.75) && isShooting) {
       feeder.set(0);
       isShooting = false;
       s_timer.reset();
@@ -500,23 +531,23 @@ public class Robot extends TimedRobot {
     //System.out.println(SwerveMath.calculateDegreesPerSteeringRotation(21.428, 1));
 
   if (controller.getLeftTriggerAxis() > .3) {
-    climberLeft.set(.1);
-    climberRight.set(.1);
+    climberLeft.set(.15);
+    climberRight.set(.15);
   } else if (controller.getRightTriggerAxis() > .3){
-    climberLeft.set(-.1);
-    climberRight.set(-.1);
+    climberLeft.set(-.15);
+    climberRight.set(-.15);
   } else {
     climberLeft.set(0);
     climberRight.set(0);
   }
 
-    if (controller2.getAButtonPressed() || controller.getYButtonPressed()) {
+    if (controller2.getAButtonPressed() || controller.getBButtonPressed()) {
         //0 arm
         armSetpoint = 0;
         armPresetRunning = true;
     }
 
-     if (controller.getBButtonPressed()) {
+     if (controller.getYButtonPressed()) {
       armSetpoint = 31;
       armPresetRunning = true;
     // runningPIDAmp = true;  
