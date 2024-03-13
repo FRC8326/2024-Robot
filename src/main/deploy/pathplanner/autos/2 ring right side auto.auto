@@ -1,0 +1,43 @@
+{
+  "version": 1.0,
+  "startingPose": {
+    "position": {
+      "x": 0.63,
+      "y": 4.46
+    },
+    "rotation": -60.0
+  },
+  "command": {
+    "type": "sequential",
+    "data": {
+      "commands": [
+        {
+          "type": "path",
+          "data": {
+            "pathName": "right shoot to stage ring"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "Stage ring to right shoot"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "right shoot to far right ring"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "Far right ring to shoot right"
+          }
+        }
+      ]
+    }
+  },
+  "folder": null,
+  "choreoAuto": false
+}

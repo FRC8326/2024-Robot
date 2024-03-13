@@ -1,0 +1,63 @@
+{
+  "version": 1.0,
+  "waypoints": [
+    {
+      "anchor": {
+        "x": 8.002785729882236,
+        "y": 7.427458664441138
+      },
+      "prevControl": null,
+      "nextControl": {
+        "x": 1.2028547365320923,
+        "y": 6.8410803488210234
+      },
+      "isLocked": false,
+      "linkedName": "Far left ring"
+    },
+    {
+      "anchor": {
+        "x": 0.6987751318861041,
+        "y": 6.583896877066937
+      },
+      "prevControl": {
+        "x": 1.7172216800529467,
+        "y": 7.067401803970199
+      },
+      "nextControl": null,
+      "isLocked": false,
+      "linkedName": "left shoot"
+    }
+  ],
+  "rotationTargets": [],
+  "constraintZones": [],
+  "eventMarkers": [
+    {
+      "name": "shoot (with delay)",
+      "waypointRelativePos": 1.0,
+      "command": {
+        "type": "parallel",
+        "data": {
+          "commands": []
+        }
+      }
+    }
+  ],
+  "globalConstraints": {
+    "maxVelocity": 3.0,
+    "maxAcceleration": 3.0,
+    "maxAngularVelocity": 540.0,
+    "maxAngularAcceleration": 720.0
+  },
+  "goalEndState": {
+    "velocity": 0,
+    "rotation": 59.34933204267926,
+    "rotateFast": true
+  },
+  "reversed": false,
+  "folder": null,
+  "previewStartingState": {
+    "rotation": 0,
+    "velocity": 0
+  },
+  "useDefaultConstraints": true
+}
