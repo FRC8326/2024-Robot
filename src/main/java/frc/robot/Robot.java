@@ -242,6 +242,7 @@ public class Robot extends TimedRobot {
   //control left and right   
 
   if (ll_x < (target_x - ll_deadzoneXY) || ll_x > (target_x + ll_deadzoneXY)) {
+       double Kp = .02;
        double Ki = .003;
        commandAngle = PIDLoop(ll_x, Kp, Ki, target_x);
       //  System.out.println("commandAngle: " + command);
