@@ -5,14 +5,14 @@
 package frc.robot;
 
 
-//package oi.limelightvision.limelight.frc;
+// package oi.limelightvision.limelight.frc;
 
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableEntry;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.cameraserver.CameraServer;
 import edu.wpi.first.wpilibj.Notifier;
-//import oi.limelightvision.limelight.frc.ControlMode.*;
+// import oi.limelightvision.limelight.frc.ControlMode.*;
 
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.XboxController;
@@ -26,6 +26,7 @@ import java.io.IOException;
 
 import com.ctre.phoenix.sensors.CANCoder;
 import com.pathplanner.lib.auto.AutoBuilder;
+import com.pathplanner.lib.auto.NamedCommands;
 import com.pathplanner.lib.commands.PathPlannerAuto;
 import com.pathplanner.lib.path.PathPlannerPath;
 import com.pathplanner.lib.util.HolonomicPathFollowerConfig;
@@ -42,15 +43,33 @@ import swervelib.telemetry.SwerveDriveTelemetry.TelemetryVerbosity;
 import swervelib.SwerveDrive;
 import swervelib.encoders.CANCoderSwerve;
 import swervelib.math.SwerveMath;
+import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
+import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.Timer;
+import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import com.revrobotics.CANSparkMax;
 import com.revrobotics.CANSparkLowLevel.MotorType;
+
+
+
+// for LL3 localization
+import edu.wpi.first.math.Matrix;
+import edu.wpi.first.math.VecBuilder;
+import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator;
+import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Translation2d;
+import edu.wpi.first.math.kinematics.ChassisSpeeds;
+import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
+import edu.wpi.first.math.kinematics.SwerveModulePosition;
+import edu.wpi.first.math.util.Units;
+import edu.wpi.first.wpilibj.AnalogGyro;
+import edu.wpi.first.wpilibj.Timer;
 //import edu.wpi.first.util.sendable.Sendable;
 //import java.lang.AutoCloseable;
 //import com.playingwithfusion.TimeOfFlight;
@@ -86,6 +105,7 @@ public class Robot extends TimedRobot {
   private final Timer m_timer = new Timer();
   private final Timer s_timer = new Timer();
   private final Timer b_timer = new Timer();
+  private final Timer t_timer = new Timer();
   private final Timer autoTimer = new Timer();
   private boolean isShooting = false;
   private double autoShootTimer = 0;
@@ -107,12 +127,18 @@ public class Robot extends TimedRobot {
   double Kp2 = 0; 
   double Ki2 = 0;
   double armTarget = 0; 
+  double shooterProxy = 0;
   boolean armPresetRunning = false;
   double armSetpoint = 0; 
   boolean runningPIDAmp = false;
   boolean hasReached = false;
-  boolean teleShoot = false;
+  boolean teleShootBool = false;
   double maximumSpeed;
+  boolean hasReached2 = false;
+  boolean hasReached3 = false;
+  double ll_f_x = 0;
+  double ll_f_y = 0;
+  double ll_f_area = 0;
 
 
   // CANCoderSwerve1 = new CANCoderSwerve(34);
@@ -130,9 +156,24 @@ public class Robot extends TimedRobot {
     lastTime = m_timer.get();
     return command; 
   }
-
+//most of this needs to get tuned 
   public void armControl(double armGoal) {
-      Kp2 = .0095;
+    //Arm Up Speed //should be faster 
+    if (armGoal > leftArmEncoder.getPosition()) {
+      Kp2 = .016;
+      Ki2 = .07;
+      armTarget = armGoal; 
+      PIDLoop(leftArmEncoder.getPosition(), Kp2, Ki2, armTarget);
+      double armCommand = command;
+      if (Math.abs(armGoal - leftArmEncoder.getPosition()) < 1){
+        armPresetRunning = false;     
+      }
+      arm_left.set(armCommand);
+      arm_right.set(-armCommand);
+    }
+    //Arm Down Speed //should be slower
+    if (armGoal < leftArmEncoder.getPosition()) {
+      Kp2 = .009;
       Ki2 = .0044;
       armTarget = armGoal; 
       PIDLoop(leftArmEncoder.getPosition(), Kp2, Ki2, armTarget);
@@ -142,35 +183,47 @@ public class Robot extends TimedRobot {
       }
       arm_left.set(armCommand);
       arm_right.set(-armCommand);
-     
+    }
+  }
+
+  public void teleShoot() {
+    System.out.println("1 t_timer: " + t_timer.get());
+    System.out.println("HR: " + hasReached3);
+    
+    if(hasReached3 == false) {
+      t_timer.reset();
+      hasReached3 = true;
+    }
+    
+    System.out.println("2 t_timer: " + t_timer.get());
+    if(0 < t_timer.get() && t_timer.get() < 0.3) {
+      feeder.set(-.1);
+      shooter.set(0.1);
+    }
+    if(0.3 < t_timer.get() && t_timer.get() < 0.8) {
+      shooter.set(-0.6);
+    }
+    if(0.8 < t_timer.get() && t_timer.get() < 1.3) {
+      feeder.set(1);
+    }
+    
+    if(t_timer.get() < 2.5) {
+
+    }
+    else {
+      t_timer.reset();
+      hasReached3 = false;
+    }
   }
 
   public void autoShoot() {
-      if(autoTimer.get() > 6.1) {
-        shooter.set(0);
-        feeder.set(0);
-        return;
-      }
-      if(!hasReached) {
-        b_timer.reset();
-        autoShootTimer = b_timer.get();
-        hasReached = true;
-      }
-      feeder.set(-.05);
-      shooter.set(-.05); 
-  //  System.out.println("Timer: " + s_timer.get() + ", Shoot Timer: " + shootTimer);
-    System.out.println("b_timer: " + b_timer.get());
-    if(0.2 < b_timer.get() && b_timer.get() < 1.6) {
-      shooter.set(1.3);
-    }
-    else if (1.6 < b_timer.get() && b_timer.get() < 2) {
-      feeder.set(1.3);
-      shooter.set(1.3);
-    }
+     
   }
+  
+//original autospeaker
 
   public void autoSpeaker() {
-    double target_area = .66; //.53
+    double target_area = .8; //.53
     double target_x = 0;
     double ll_deadzoneA = .01;
     double ll_deadzoneXY = 1.5; 
@@ -179,11 +232,64 @@ public class Robot extends TimedRobot {
 
     //control forward and back
     if (ll_area < (target_area - ll_deadzoneA) || ll_area > (target_area + ll_deadzoneA)) {
-      double Kp = .55; //.81
-      double Ki = .00; //.09
-      PIDLoop(ll_area, Kp, Ki, target_area);
-      commandY = command;
+      double Kp = 0.55; //.81
+      double Ki = 0.03; //.09
+      commandY = PIDLoop(ll_area, Kp, Ki, target_area);
+      // System.out.println("commandY: " + commandY);
+      //commandY = command;
     } 
+
+  //control left and right   
+
+  if (ll_x < (target_x - ll_deadzoneXY) || ll_x > (target_x + ll_deadzoneXY)) {
+       double Ki = .003;
+       commandAngle = PIDLoop(ll_x, Kp, Ki, target_x);
+      //  System.out.println("commandAngle: " + command);
+       commandAngle = command;
+     }
+
+     //stop if can't see a tag
+     if (ll_area <= 0.0002) {
+       runningPID = false;
+     }
+
+     //drive and stop if command is too low
+     if (Math.abs(commandAngle) < .1) {
+       commandAngle = 0;
+       //System.out.println("here");
+     }
+
+     //System.out.println("Command:" + commandY);
+     if (Math.abs(commandY) < 0.07) {
+        commandY = 0;
+        //System.out.println("here2");
+     }
+    //  System.out.println("Total: " + (commandAngle + commandY));
+     if(Math.abs(commandAngle) + Math.abs(commandY) < 0.11) {
+        runningPID = false;
+     }
+    
+    if(runningPID) {
+      ChassisSpeeds csPID = new ChassisSpeeds(0, (-commandY*1.2), -commandAngle);
+      swerveDrive.driveFieldOriented(csPID);
+    }
+    
+    } 
+
+//new autoSpeaker
+/* 
+ public void autoSpeaker() {
+    double target_x = 0;
+    double ll_deadzoneXY = 1.5; 
+    //double target_y = 0;
+    lastTime = m_timer.get();
+
+    //Function to determine armControl from ll_area
+        //I can send you the google doc with the equation from test data-we could probaly use some more test points
+
+
+    //control Arm up and down 
+    armControl(armGoal);
 
   //control left and right   
 
@@ -214,10 +320,12 @@ public class Robot extends TimedRobot {
      /*if(Math.abs(commandAngle + commandY) < 0.002) {
         teleShoot = true;
      }*/
-
+/* 
      ChassisSpeeds csPID = new ChassisSpeeds(0, -commandY, -commandAngle);
      swerveDrive.driveFieldOriented(csPID);
-  }
+  }*/
+
+
 
   public void autoAmp() {
     runningPIDAmp = true;
@@ -258,16 +366,28 @@ public class Robot extends TimedRobot {
     // autonomous chooser on the dashboard.
     m_robotContainer = new RobotContainer();
     
-     maximumSpeed = Units.feetToMeters(4.5);
+    maximumSpeed = Units.feetToMeters(4.5);
     File swerveJsonDirectory = new File(Filesystem.getDeployDirectory(),"swerve");
     
     try {
       swerveDrive = new SwerveParser(swerveJsonDirectory).createSwerveDrive(maximumSpeed);
     }
     catch(IOException i) {
-      
+   
     }
+
+    t_timer.start();
+
+    //NamedCommands.registerCommand("shoot", shootCommand());
+    //NamedCommands.registerCommand("intake", new intakeCommand());
+    
   }
+ 
+  /* 
+  public Command shootCommand() {
+    autoShoot();
+    return shootCommand();
+  } */
 
   /**
    * This function is called every 20 ms, no matter the mode. Use this for items like diagnostics
@@ -305,6 +425,9 @@ public class Robot extends TimedRobot {
     autoTimer.start();
     b_timer.start();
 
+    shooter.setInverted(true);
+    
+
   }
 
   /** This function is called periodically during autonomous. */
@@ -314,16 +437,20 @@ public class Robot extends TimedRobot {
     ChassisSpeeds cs_autoRight = new ChassisSpeeds(-0.35,0,0);
     ChassisSpeeds cs_autoLeft = new ChassisSpeeds(0.35,0,0);
     ChassisSpeeds cs_auto2 = new ChassisSpeeds(0,.35,0);
+    ChassisSpeeds cs_autoForward = new ChassisSpeeds(0,-.35,0);
+    ChassisSpeeds cs_autoRotateLeft = new ChassisSpeeds(0,0,.2);
+    ChassisSpeeds cs_autoRotateRight = new ChassisSpeeds(0,0,-.2);
 
     /*Auto Options:
-     * 1:Shoot, Drive back Left
-     * 1.5: shoot, drive back, right
+     * 1:Shoot, Drive back Left  *****
+     * 1.5: shoot, drive back, right  ******
      * 2:Shoot, drive back, pick up another ring
-     * 3:Shoot, drive back, pick up ring, shoot again
+     * 3:Shoot, drive back, pick up ring, shoot again *****
      * 4:Drive back
+     * 5:DO NOT USE THIS
      */
 
-    System.out.println(autoTimer.get());
+    // System.out.println(autoTimer.get());
     //Auto option 1: Shoot, drive back, left
     /*if (autoTimer.get() < 3.1){
     
@@ -341,9 +468,10 @@ public class Robot extends TimedRobot {
     }
 */
 
-    //Auto option 1: Shoot, drive back right
-   if (autoTimer.get() < 3.1){
-    
+    //Auto option 1.5: Shoot, drive back right
+    /* 
+    if (autoTimer.get() < 3.1){
+      
     } 
     else if(autoTimer.get() < 6.1){
         autoShoot();
@@ -356,6 +484,8 @@ public class Robot extends TimedRobot {
     } else {
       swerveDrive.driveFieldOriented(zeroSpeed);
     }
+    */
+    
 
      
 
@@ -363,7 +493,7 @@ public class Robot extends TimedRobot {
       if (autoTimer.get() < 3){
         autoShoot();
       } else if (autoTimer.get() < 6){
-        swerveDrive.driveFieldOriented(cs_auto);
+        swerveDrive.driveFieldOriented(cs_auto2);
         intake.set(0.5);
         intake2.set(-0.5);
         feeder.set(.5);
@@ -376,42 +506,110 @@ public class Robot extends TimedRobot {
 
     */
 
-     //Auto option 3: Shoot, drive back, pick up ring, shoot again
-    /*
+     //Auto option 3: Shoot, drive back, pick up ring, shoot again from center
+    
      if (autoTimer.get() < 3){
         autoShoot();
       } else if (autoTimer.get() < 5){
-        swerveDrive.driveFieldOriented(cs_auto);
+        swerveDrive.driveFieldOriented(cs_auto2);
+        shooter.set(0);
         intake.set(0.5);
         intake2.set(-0.5);
         feeder.set(.5);
-      } else if (autoTimer.get() < 5.5) {
+      } else if (autoTimer.get() < 5.3){
+        intake.set(0.5);
+        intake2.set(-0.5);
+        feeder.set(.5);
+        shooter.set(0); 
+      } else if (autoTimer.get() < 6.5) {  
         swerveDrive.driveFieldOriented(zeroSpeed);
+      } else if (autoTimer.get() < 6.8){
         intake.set(0);
         intake2.set(0);
         feeder.set(0);
-      } else if (autoTimer.get() < 7.5) {
-        swerveDrive.driveFieldOriented(cs_auto);
       } else if (autoTimer.get() < 9) {
+        swerveDrive.driveFieldOriented(cs_autoForward);
+      } else if (autoTimer.get() < 13) {
+        if(!hasReached2) {
+          hasReached = false;
+          hasReached2 = true;
+        } 
         autoShoot();
+        swerveDrive.driveFieldOriented(zeroSpeed);
+      } else {
+        shooter.set(0); 
       }
-     */
+       
+      
+      
+     
 
-    //Auto option 3: Drive
+    //Auto option 4: Drive
     /*
     if (autoTimer.get() < 3){
        swerveDrive.driveFieldOriented(cs_auto);
     } else {
       swerveDrive.driveFieldOriented(zeroSpeed);
-    }
-     
-     */
-
+    }*/
+ 
+    //5 doesn't work
+ //Auto option 5: Shoot, drive back, pick up ring, shoot again from right side
+    /* 
+     if (autoTimer.get() < 3){
+        autoShoot();
+      } else if (autoTimer.get() < 5){
+        swerveDrive.driveFieldOriented(cs_auto2);
+        intake.set(0.25);
+        intake2.set(-0.25);
+        feeder.set(.25);
+        shooter.set(0); 
+      } else if (autoTimer.get() < 6.5) {  
+        swerveDrive.driveFieldOriented(zeroSpeed);
+      } else if (autoTimer.get() < 6.8){
+        intake.set(0);
+        intake2.set(0);
+        feeder.set(0);
+      } else if (autoTimer.get() < 8.8) {
+        swerveDrive.driveFieldOriented(cs_autoForward);
+      } else if (autoTimer.get() < 13) {
+        if(!hasReached2) {
+          hasReached = false;
+          hasReached2 = true;
+        } 
+        autoShoot();
+        swerveDrive.driveFieldOriented(zeroSpeed);
+      } else {
+        shooter.set(0); 
+      }
+*/
 
 
      
      
   }
+/* 
+  public void updateOdometry() {
+    m_poseEstimator.update(
+        m_gyro.getRotation2d(),
+        new SwerveModulePosition[] {
+          m_frontLeft.getPosition(),
+          m_frontRight.getPosition(),
+          m_backLeft.getPosition(),
+          m_backRight.getPosition()
+        });
+
+
+
+    LimelightHelpers.PoseEstimate limelightMeasurement = LimelightHelpers.getBotPoseEstimate_wpiBlue("limelight");
+    if(limelightMeasurement.tagCount >= 2)
+    {
+      m_poseEstimator.setVisionMeasurementStdDevs(VecBuilder.fill(.7,.7,9999999));
+      m_poseEstimator.addVisionMeasurement(
+          limelightMeasurement.pose,
+          limelightMeasurement.timestampSeconds);
+    }
+  }
+  */
 
   @Override
   public void teleopInit() {
@@ -434,22 +632,35 @@ public class Robot extends TimedRobot {
   @Override
   public void teleopPeriodic() {
 
-    System.out.println("encoder " + leftArmEncoder.getPosition());
+    // System.out.println("encoder " + leftArmEncoder.getPosition());
+   
     //To get Limelight Data
-    NetworkTable table = NetworkTableInstance.getDefault().getTable("limelight");
-    NetworkTableEntry tx = table.getEntry("tx");
-    NetworkTableEntry ty = table.getEntry("ty");
-    NetworkTableEntry ta = table.getEntry("ta");
+    NetworkTable table_b = NetworkTableInstance.getDefault().getTable("limelight-back");
+    NetworkTable table_f = NetworkTableInstance.getDefault().getTable("limelight-front");
+    NetworkTableEntry tx = table_b.getEntry("tx");
+    NetworkTableEntry ty = table_b.getEntry("ty");
+    NetworkTableEntry ta = table_b.getEntry("ta");
     //read values periodically
     ll_x = tx.getDouble(0.0);
     ll_y = ty.getDouble(0.0);
     ll_area = ta.getDouble(0.0);
-    table.getEntry("pipeline").setValue(0);
+
+    NetworkTableEntry tx_f = table_f.getEntry("tx");
+    NetworkTableEntry ty_f = table_f.getEntry("ty");
+    NetworkTableEntry ta_f = table_f.getEntry("ta");
+    //read values periodically
+    ll_f_x = tx_f.getDouble(0.0);
+    ll_f_y = ty_f.getDouble(0.0);
+    ll_f_area = ta_f.getDouble(0.0);
+    //table_b.getEntry("pipeline").setValue(0);
      //post to smart dashboard periodically
     SmartDashboard.putNumber("LimelightX", ll_x);
     SmartDashboard.putNumber("LimelightY", ll_y);
     SmartDashboard.putNumber("LimelightArea", ll_area);
     
+//  System.out.println("limelight " + ll_area);
+//  System.out.println("LLX"+ll_x);
+//  System.out.println("LLY"+ll_y);
 
     
     //System.out.println("Area: " + ll_area + " Angle: " + ll_x);
@@ -509,57 +720,82 @@ public class Robot extends TimedRobot {
       csAngle = controller.getRightX() * maxSpeedAngle;
     }
 
-    if ((controller2.getRightTriggerAxis() > 0.3) || controller.getAButton()) {
-      s_timer.reset();
-      feeder.set(-.05);
-      shooter.set(-.05);
-      shootTimer = s_timer.get();
-      isShooting = true;
-     // teleShoot = false;
-    } else if (controller.getXButton()) {
-      shooter.set(.4);
-    } 
-    else if(isShooting) {
+    /*if ((controller2.getRightTriggerAxis() > 0.3) || controller.getAButton()) {
+      autoShoot();
+      //I would like to have autoshoot be our only shooting command, but it isnt wokring right now
+    }*/ //I think the feeder is being turned off somewhere in the main loop
+
+    //To manually shoot with two buttons
+     if ((controller2.getRightTriggerAxis() > 0.3)) {
+      feeder.set(.5);
+      //I would like to have autoshoot be our only shooting command, but it isnt wokring right now
+    }
+     
+    if(controller2.getRightBumper()) {
+      feeder.set(-.1); 
+      shooterProxy = 0.1; // now positive with gear. This operation doesn't work properly
+    }
+    if(controller.getAButton()) {
+      //shooter.set(-0.6);
+      runningPID = true;
+      autoSpeaker();
+    } else {
+      //shooterProxy = 0;
+      runningPID = false;
+    }
+
+    if(controller2.getRightStickButton()) {
+      teleShoot();
+    }
+    
+    if(!controller2.getRightBumper() && !controller.getAButton() && !controller2.getRightStickButton()) {
+      shooterProxy = 0;
+    }
+    if(!controller2.getRightStickButton()) {
+      shooter.set(shooterProxy);
+    }
+    // limelight note test thing. homing
+    double lll_csX = 0;
+    double lll_csY = 0;
+    double lll_csAngle = 0;
+    if (controller2.getLeftStickButton()) {
+      
+      System.out.println("mmmmm ring " + ll_f_x +" "+ ll_f_y);
+      if (Math.abs(ll_f_x) >= 0.1) {
+        lll_csX = 0.01 * ll_f_x;
+      if (ll_f_y >= -40) {
+        lll_csY = -0.5;}
+      }
+      ChassisSpeeds lll = new ChassisSpeeds(lll_csX, -lll_csY, lll_csAngle);
+      swerveDrive.drive(lll);;
+
       
     }
     else {
-      shooter.set(0);
-    }
-  //  System.out.println("Timer: " + s_timer.get() + ", Shoot Timer: " + shootTimer);
-    
-    if(s_timer.get() > (shootTimer + .2) && isShooting) {
-      shooter.set(1.3);
-    }
-    if (s_timer.get() > (shootTimer + 1.2) && isShooting) {
-      feeder.set(1.3);
-    }
-    if(s_timer.get() > (shootTimer + 1.75) && isShooting) {
-      feeder.set(0);
-      isShooting = false;
-      s_timer.reset();
-    }
-    
-
-   
-    //Shuffled around the axes to make the actual front the front.
-    if(!runningPID || !runningPIDAmp) {
+      if(!runningPID && !runningPIDAmp) {
       ChassisSpeeds cs = new ChassisSpeeds(csX,-csY,csAngle);
+      
       swerveDrive.driveFieldOriented(cs);
+     }
     }
+    
+    //Shuffled around the axes to make the actual front the front.
   
     //System.out.println(SwerveMath.calculateMetersPerRotation(0.1, 6.75, 1));
     //System.out.println(SwerveMath.calculateDegreesPerSteeringRotation(21.428, 1));
 
   if (controller.getLeftTriggerAxis() > .3) {
-    climberLeft.set(.15);
-    climberRight.set(.15);
+    climberLeft.set(.27);
+    climberRight.set(-.27);
   } else if (controller.getRightTriggerAxis() > .3){
-    climberLeft.set(-.15);
-    climberRight.set(-.15);
+    climberLeft.set(-.27);
+    climberRight.set(.27);
   } else {
     climberLeft.set(0);
     climberRight.set(0);
   }
+
+  //If you want to run the arm in any other loop, se armPresetRunning to true
 
     if (controller2.getAButtonPressed() || controller.getBButtonPressed()) {
         //0 arm
@@ -573,37 +809,30 @@ public class Robot extends TimedRobot {
     // runningPIDAmp = true;  
    }
 
-    if (armPresetRunning) {
-      armControl(armSetpoint);
-    }
 
     if (controller2.getYButton()) {
       armPresetRunning = false;
       arm_left.set(0.1);
       arm_right.set(-0.1);
+      armSetpoint = leftArmEncoder.getPosition();
     } else if (controller2.getBButton()) {
       armPresetRunning = false;
       arm_left.set(-0.1);
       arm_right.set(0.1);
-    } else if (!armPresetRunning) {
-      arm_left.set(0);
-      arm_right.set(0);
-    }
-    else {
-
+      armSetpoint = leftArmEncoder.getPosition();
+    }else {
+      armControl(armSetpoint);
     }
 
    //reverse intake
-   if(controller2.getRightBumper()) {
-      feeder.set(-.1);
-      shooter.set(-.1);
-    } 
+   
 
 
     if (controller2.getLeftTriggerAxis() > .3){
       intake.set(-.1);
       intake2.set(.1);
     }
+  }
 
   
   //Limelight auto subroutines  
@@ -639,7 +868,7 @@ public class Robot extends TimedRobot {
     // change back to pressed
     // 31.4 top, 0.25 bottom
 
-    }
+  
   
     
 
@@ -664,6 +893,8 @@ public class Robot extends TimedRobot {
   public void simulationPeriodic() {}
 
 //Path Planner Auto Code
+//If things break try commenting everything under here out other than the bracket
+
 
 public class SwerveSubsystem extends SubsystemBase
 {
@@ -694,6 +925,7 @@ public class SwerveSubsystem extends SubsystemBase
   /**
    * Setup AutoBuilder for PathPlanner.
    */
+
   public void setupPathPlanner()
   {
     AutoBuilder.configureHolonomic(
@@ -718,7 +950,7 @@ public class SwerveSubsystem extends SubsystemBase
         this // Reference to this subsystem to set requirements
                                                             );
   }
-
+  
   public Pose2d getPose() {
     return swerveDrive.getPose();
   }
@@ -736,27 +968,26 @@ public class SwerveSubsystem extends SubsystemBase
   }
 }
 
-  /**
-   * Get the path follower with events.
-   *
-   * @param pathName       PathPlanner path name.
-   * @return {@link AutoBuilder#followPath(PathPlannerPath)} path command.
-   */
-  public Command getAutonomousCommand(String pathName)
-  {
-    // Create a path following command using AutoBuilder. This will also trigger event markers.
-    return new PathPlannerAuto(pathName);
-  }
-
 //Auto 
 //All written in command structures
 
+/*
+  public Command getAutonomousCommand() {
+    return new PathPlannerAuto("a");
+   // return autoChooser.getSelected();
+  }
+  */
+
+
+
 //Shoot
 
-//
+//drive
 
-
+//intake
 }
+
+
 
 
   
