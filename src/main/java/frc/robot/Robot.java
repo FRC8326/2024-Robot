@@ -156,7 +156,6 @@ public class Robot extends TimedRobot {
   }
 
   public double PIDLoop(double sensorReading, double Kp, double Ki, double target) { 
-
     double elapsedTime = (m_timer.get() - lastTime);
     double error = target - sensorReading;
     double cumulativeError =+ error * elapsedTime;
@@ -169,7 +168,7 @@ public class Robot extends TimedRobot {
     //Arm Up Speed //should be faster 
     armGoal = armGoal + 0.375; // offset is to account for constant arm error
     if (armGoal > leftArmEncoder.getPosition()) { // add some max value / clamp
-      Kp2 = .1;
+      Kp2 = .07; 
       Ki2 = 0;//.07;
       armTarget = armGoal; 
       PIDLoop(leftArmEncoder.getPosition(), Kp2, Ki2, armTarget);
@@ -182,6 +181,9 @@ public class Robot extends TimedRobot {
       }
       arm_left.set(armCommand);
       arm_right.set(-armCommand);
+
+      //System.out.println("command: " + armCommand);
+      //CLAMP THE COMMAND
     }
     //Arm Down Speed //should be slower
     if (armGoal < leftArmEncoder.getPosition()) {
@@ -217,11 +219,15 @@ public class Robot extends TimedRobot {
                                           // I updated this from 0.5s to 0.6s for reliability
       shooter.set(-0.8);
     }
-    if(0.9 < t_timer.get() && t_timer.get() < 1.3) { // fire
+    if(0.9 < t_timer.get() && t_timer.get() < 1.25) { // fire
       feeder.set(1);
     }
+    if(1.25 < t_timer.get() && t_timer.get() < 1.5) {
+      armSetpoint = 0;
+      armPresetRunning = true;
+    }
     
-    if(t_timer.get() < 2.5) {
+    if(t_timer.get() < 2.8) {
 
     }
     else {
@@ -326,7 +332,9 @@ public class Robot extends TimedRobot {
   
 
 
-    System.out.println("encoder: " + leftArmEncoder.getPosition() + "degrees: " + motorRotationsToDegreesArm(leftArmEncoder.getPosition()) + "setpoint degrees: " + motorRotationsToDegreesArm(targetAngle) +",x: " + x);
+    System.out.println("encoder: " + leftArmEncoder.getPosition());
+    System.out.println("degrees: " + motorRotationsToDegreesArm(leftArmEncoder.getPosition()));
+    System.out.println("setpoint degrees: " + motorRotationsToDegreesArm(targetAngle) + ", x: " + x);
     
     if (ll_y == 0){
       return 0; //returns 0 bc LL val only 0 when nothing in sight (aka do nothing)
@@ -356,7 +364,8 @@ public class Robot extends TimedRobot {
     double rotationTargetPID;
     rotationTargetPID = -PIDLoop(rawRotationTarget, Kp, Ki, rotationTarget); // don't think about this pid map too much. The real math doesn't work, but we only care about relative, so it is fine.
 
-    if (ll_x == 0) {
+    // used to be == 0
+    if (ll_x < 0.02) {
       return 0; //returns 0 bc LL val only 0 when nothing in sight (aka do nothing)
     }
 
@@ -368,7 +377,7 @@ public class Robot extends TimedRobot {
 //original autospeaker
 
   public void autoSpeaker() {
-    double target_area = .8; //.53
+    double target_area = .85; //.53
     double target_x = 0;
     double ll_deadzoneA = .01;
     double ll_deadzoneXY = 1.5; 
@@ -377,7 +386,7 @@ public class Robot extends TimedRobot {
 
     //control forward and back
     if (ll_area < (target_area - ll_deadzoneA) || ll_area > (target_area + ll_deadzoneA)) {
-      double Kp = 0.585; //.81
+      double Kp = 0.85; //.81
       double Ki = 0.05; //.09
       commandY = PIDLoop(ll_area, Kp, Ki, target_area);
       // System.out.println("commandY: " + commandY);
@@ -588,8 +597,8 @@ public class Robot extends TimedRobot {
     ChassisSpeeds cs_autoRotateLeft = new ChassisSpeeds(0,0,-.2);
     ChassisSpeeds cs_autoRotateRight = new ChassisSpeeds(0,0,.2);
 
-    ChassisSpeeds cs_fasterRotateLeft = new ChassisSpeeds(0,0,-0.4);
-    ChassisSpeeds cs_fasterRotateRight = new ChassisSpeeds(0,0,0.4);
+    ChassisSpeeds cs_fasterRotateLeft = new ChassisSpeeds(0,0,-0.55);
+    ChassisSpeeds cs_fasterRotateRight = new ChassisSpeeds(0,0,0.55);
 
     NetworkTable table_b = NetworkTableInstance.getDefault().getTable("limelight-back");
     NetworkTable table_f = NetworkTableInstance.getDefault().getTable("limelight-front");
@@ -619,7 +628,7 @@ public class Robot extends TimedRobot {
     if(0 < autoTimer.get() && autoTimer.get() < 1.3) {
       teleShoot();
     }
-    if(1.3 < autoTimer.get() && autoTimer.get() < 2.7) {
+    if(1.3 < autoTimer.get() && autoTimer.get() < 2.3) {
       shooter.set(0);
       feeder.set(0.5);
       intake.set(0.5);
@@ -633,24 +642,23 @@ public class Robot extends TimedRobot {
       ChassisSpeeds lll = new ChassisSpeeds(lll_csX, (-lll_csY * 1.2), lll_csAngle);
       swerveDrive.drive(lll); 
     }
-    if(2.7 < autoTimer.get() && autoTimer.get() < 4.8) {
+    if(2.3 < autoTimer.get() && autoTimer.get() < 3.4) {
       //feeder.set(0.2);
       runningPID = true;
       autoSpeaker();
       //align
 
     }
-    if(4.8 < autoTimer.get() && autoTimer.get() < 6.1) {
-      
+    if(3.4 < autoTimer.get() && autoTimer.get() < 4.7) {
       runningPID = false;
       swerveDrive.driveFieldOriented(zeroSpeed);
       teleShoot();
       //shoot
     }
-    if(6.1 < autoTimer.get() && autoTimer.get() < 6.4) {
-      swerveDrive.driveFieldOriented(cs_fasterRotateLeft);
+    if(4.7 < autoTimer.get() && autoTimer.get() < 5.2) {
+      swerveDrive.driveFieldOriented(cs_fasterRotateRight);
     }
-    if(6.4 < autoTimer.get() && autoTimer.get() < 8) {
+    if(5.2 < autoTimer.get() && autoTimer.get() < 6.8) {
       if(!hasReached4) {
         swerveDrive.drive(zeroSpeed);
         hasReached4 = true;
@@ -668,21 +676,25 @@ public class Robot extends TimedRobot {
       ChassisSpeeds lll = new ChassisSpeeds(lll_csX, (-lll_csY * 1.2), lll_csAngle);
       swerveDrive.drive(lll);
     }
-    if(8 < autoTimer.get() && autoTimer.get() < 9.1) {
+    if(8 < autoTimer.get() && autoTimer.get() < 8.5) {
       //rotate right and move right
     }
-    if(9.1 < autoTimer.get() && autoTimer.get() < 11.1) {
+    if(8.5 < autoTimer.get() && autoTimer.get() < 9.6) {
       //align
     }
-    if(11.1 < autoTimer.get() && autoTimer.get() < 12.1) {
+    if(9.6 < autoTimer.get() && autoTimer.get() < 10.9) {
       //shoot
     }
-    if(12.1 < autoTimer.get() && autoTimer.get() < 12.6) {
-      //rotate right
+    if(10.9 < autoTimer.get() && autoTimer.get() < 11.4) {
+      //rotate left
     }
-    if(13.6 < autoTimer.get() && autoTimer.get() < 15) {
+    if(11.4 < autoTimer.get() && autoTimer.get() < 12.6) {
       //intake and mmmmm ring
     }
+    if(12.6 < autoTimer.get() && autoTimer.get() < 13.1) {
+      //rotate and move right
+    }
+    if(13.1 < autoTimer.get() && autoTimer.get() < 13.6)
 
     /*Auto Options:
      * 1:Shoot, Drive back Left  *****
@@ -1014,7 +1026,7 @@ public class Robot extends TimedRobot {
       if (ll_f_y >= -40) {
         lll_csY = -0.5;}
       }
-      ChassisSpeeds lll = new ChassisSpeeds(lll_csX, -lll_csY, lll_csAngle);
+      ChassisSpeeds lll = new ChassisSpeeds((lll_csX*1.5), -(lll_csY*1.2), lll_csAngle);
       swerveDrive.drive(lll);  
     }
 
