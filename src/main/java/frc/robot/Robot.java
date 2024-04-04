@@ -13,7 +13,7 @@ import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.cameraserver.CameraServer;
 import edu.wpi.first.wpilibj.Notifier;
 // import oi.limelightvision.limelight.frc.ControlMode.*;
-
+import edu.wpi.first.wpilibj.SPI;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -45,6 +45,7 @@ import swervelib.encoders.CANCoderSwerve;
 import swervelib.math.SwerveMath;
 import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
@@ -99,6 +100,10 @@ public class Robot extends TimedRobot {
   private final RelativeEncoder leftArmEncoder = arm_left.getEncoder();
   private RobotContainer m_robotContainer;
   private SwerveDrive swerveDrive;
+<<<<<<< Updated upstream
+=======
+  private AHRS gyro = null;
+>>>>>>> Stashed changes
 
   private final XboxController controller = new XboxController(0);
   private final XboxController controller2 = new XboxController(1);
@@ -166,7 +171,9 @@ public class Robot extends TimedRobot {
 //most of this needs to get tuned 
   public void armControl(double armGoal) {
     //Arm Up Speed //should be faster 
-    armGoal = armGoal + 0.375; // offset is to account for constant arm error
+
+    
+    armGoal = armGoal + 0.375 + 0.15; // offset is to account for arm error
     if (armGoal > leftArmEncoder.getPosition()) { // add some max value / clamp
       Kp2 = .07; 
       Ki2 = 0;//.07;
@@ -179,8 +186,14 @@ public class Robot extends TimedRobot {
       if (Math.abs(armGoal - leftArmEncoder.getPosition()) < 1){
         armPresetRunning = false;     
       }
+      if (leftArmEncoder.getPosition() > 31.5) {
+        armPresetRunning = false;   
+      }
+
       arm_left.set(armCommand);
       arm_right.set(-armCommand);
+      System.out.println("Command: " + armCommand);
+      System.out.println("Encoder: " + leftArmEncoder.getPosition());
 
       //System.out.println("command: " + armCommand);
       //CLAMP THE COMMAND
@@ -195,9 +208,14 @@ public class Robot extends TimedRobot {
       if (Math.abs(armGoal - leftArmEncoder.getPosition()) < 1){
         armPresetRunning = false;     
       }
+      if (leftArmEncoder.getPosition() > .2) {
+        armPresetRunning = false;   
+      }
       // System.out.println("arm command: " + armCommand);
       arm_left.set(armCommand);
       arm_right.set(-armCommand);
+      System.out.println("Command: " + armCommand);
+      System.out.println("Encoder: " + leftArmEncoder.getPosition());
     }
   }
 
@@ -324,6 +342,7 @@ public class Robot extends TimedRobot {
     double x = y / (Math.tan(theta)) + 10 - 36;
 
     //desmos
+<<<<<<< Updated upstream
     //https://www.desmos.com/calculator/taiu7i1jg8
     double a = 5.9;
     double b = 0.01864;
@@ -335,6 +354,29 @@ public class Robot extends TimedRobot {
     System.out.println("encoder: " + leftArmEncoder.getPosition());
     System.out.println("degrees: " + motorRotationsToDegreesArm(leftArmEncoder.getPosition()));
     System.out.println("setpoint degrees: " + motorRotationsToDegreesArm(targetAngle) + ", x: " + x);
+=======
+    //https://www.desmos.com/calculator/y5sctj5btq
+    // double a = 5.49648;
+    // double b = 0.0148509;
+    // double c = 0.482163;
+
+    // double a = 8.8745;
+    // double b = 0.0109488;
+    // double c = -2.90105;
+
+    double a = 10.0768;
+    double b = 0.0119292;
+    double c = -3.98546;
+    targetAngle = (a) * Math.sin(b*(x)) + c; // old version
+    System.out.println("x: " + x);
+
+  
+
+
+    // System.out.println(" encoder: " + leftArmEncoder.getPosition() + ", requested: " + targetAngle);
+    // System.out.println(" degrees: " + motorRotationsToDegreesArm(leftArmEncoder.getPosition()));
+    // System.out.println(" setpoint degrees: " + motorRotationsToDegreesArm(targetAngle) + ", x: " + x);
+>>>>>>> Stashed changes
     
     if (ll_y == 0){
       return 0; //returns 0 bc LL val only 0 when nothing in sight (aka do nothing)
@@ -534,6 +576,8 @@ public class Robot extends TimedRobot {
     t_timer.start();
     shooter.setInverted(false);
 
+    gyro = (AHRS)swerveDrive.swerveDriveConfiguration.imu.getIMU();
+
 
     //NamedCommands.registerCommand("shoot", shootCommand());
     //NamedCommands.registerCommand("intake", new intakeCommand());
@@ -589,7 +633,11 @@ public class Robot extends TimedRobot {
   /** This function is called periodically during autonomous. */
   @Override
   public void autonomousPeriodic() {
+<<<<<<< Updated upstream
     //- is right, + is left
+=======
+    /* 
+>>>>>>> Stashed changes
     ChassisSpeeds cs_autoRight = new ChassisSpeeds(-0.35,0,0);
     ChassisSpeeds cs_autoLeft = new ChassisSpeeds(0.35,0,0);
     ChassisSpeeds cs_auto2 = new ChassisSpeeds(0,.35,0);
@@ -625,6 +673,230 @@ public class Robot extends TimedRobot {
     double lll_csY = 0;
     double lll_csAngle = 0;
 
+<<<<<<< Updated upstream
+=======
+    double time = autoTimer.get();
+
+    SmartDashboard.putNumber("timer", autoTimer.get());
+
+    fourNoteFromCenterRed(time, lll_csX, lll_csY);
+
+
+
+    //Original 4 ring auto, does not work with stage
+    // double armSetpointAuto = 0;
+   /*  
+    if(0 < autoTimer.get() && autoTimer.get() < 1.3) {
+      //shoot -- don't copy 
+      teleShoot();
+    }
+    else if((1.3 < time) && (time < 2.2)) {
+      //mmmmm note -- copy directly
+      shooter.set(0);
+      feeder.set(0.7);
+      intake.set(0.7);
+      intake2.set(-0.7);
+
+      if (Math.abs(ll_f_x) >= 0.1) {
+        lll_csX = 0.01 * ll_f_x;
+      }
+      if (ll_f_y >= -40) {
+        lll_csY = -0.5;
+      }
+      ChassisSpeeds lll = new ChassisSpeeds(lll_csX, (-lll_csY * 1.2), 0);
+      SmartDashboard.putNumber("lll_csX", lll_csX);
+      SmartDashboard.putNumber("lll_csY", lll_csY);
+      swerveDrive.drive(lll); 
+    }
+    else if(2.2 < time && time < 2.5) {
+      //extra intake time -- copy directly
+      swerveDrive.drive(zeroSpeed);
+    }
+    else if(2.5 < time && time < 3) {
+      //align -- copy directly
+      armSetpoint = limelight_arm_aim_proportional() - 0.2;
+      armControl(armSetpoint);
+
+      double robotRotation = limelight_robot_rotation_aim_proportional();
+      System.out.println(robotRotation);
+      ChassisSpeeds llFront = new ChassisSpeeds(0, 0, robotRotation);
+
+
+      swerveDrive.drive(llFront);  
+      
+      intake.set(0);
+      intake2.set(0);
+      feeder.set(0);
+      shooter.set(0);
+      // armSetpointAuto = limelight_arm_aim_proportional();
+      // System.out.println("Arm setpoint: " + armSetpointAuto);
+      // System.out.println("Current arm val: " + armEncoder);
+      // double error2 = armSetpointAuto - armEncoder;
+      // double armSetCommand = armSetPID.calculate(0, error2);
+      // System.out.println("Command: " + armSetCommand);
+
+      // if(armSetCommand > 0.4) {
+      //   armSetCommand = 0.4;
+      // }
+      // if(armSetCommand < 0) {
+      //   armSetCommand = 0;
+      // }
+      
+      // //armControl(armSetpoint);
+      // arm_left.set(armSetCommand);
+      // arm_right.set(-armSetCommand);
+
+
+      //System.out.println("enc: " + leftArmEncoder.getPosition());
+      //System.out.println("encoder: " + leftArmEncoder.getPosition() + "degrees: " + motorRotationsToDegreesArm(leftArmEncoder.getPosition()) + "setpoint degrees: ");
+
+    }
+    else if(3 < time && time < 4.3) {
+      //shoot - copy directly
+      armControl(armSetpoint);
+      
+      swerveDrive.drive(zeroSpeed);
+      autoShoot();
+    }
+    else if(4.3 < time && time < 5.2) {
+      //turnTo
+      shooter.set(0);
+      ChassisSpeeds cs = new ChassisSpeeds(0,0,turnTo(90));
+      swerveDrive.driveFieldOriented(cs);
+    }
+    else if(5.2 < autoTimer.get() && autoTimer.get() < 6.2) {
+      //mmmmm note
+      feeder.set(0.7);
+      intake.set(0.7);
+      intake2.set(-0.7);
+
+      if (Math.abs(ll_f_x) >= 0.1) {
+        lll_csX = 0.01 * ll_f_x;
+      }
+      if (ll_f_y >= -40) {
+        lll_csY = -0.5;
+      }
+      ChassisSpeeds lll = new ChassisSpeeds(lll_csX, (-lll_csY * 1.2), 0);
+      SmartDashboard.putNumber("lll_csX", lll_csX);
+      SmartDashboard.putNumber("lll_csY", lll_csY);
+      swerveDrive.drive(lll);
+    }
+    else if(6.2 < autoTimer.get() && autoTimer.get() < 7) {
+      //drive left and turnTo
+      ChassisSpeeds cs2 = new ChassisSpeeds(-0.85, 0, turnTo(0));
+      swerveDrive.driveFieldOriented(cs2);
+    }
+    else if(7 < autoTimer.get() && autoTimer.get() < 7.6) {
+      //continue turnTo
+      ChassisSpeeds cs3 = new ChassisSpeeds(0, 0, turnTo(0));
+      swerveDrive.driveFieldOriented(cs3);
+    }
+    else if(7.6 < autoTimer.get() && autoTimer.get() < 8.1) {
+      //align
+      armSetpoint = limelight_arm_aim_proportional();
+      armControl(armSetpoint);
+
+      double robotRotation = limelight_robot_rotation_aim_proportional();
+      System.out.println(robotRotation);
+      ChassisSpeeds llFront = new ChassisSpeeds(0, 0, robotRotation);
+
+
+      swerveDrive.drive(llFront);  
+      
+      intake.set(0);
+      intake2.set(0);
+      feeder.set(0);
+      shooter.set(0);
+    }
+    else if(8.1 < time && time < 9.4) {
+      //shoot
+      armControl(armSetpoint);
+      swerveDrive.drive(zeroSpeed);
+      autoShoot();
+    }
+    else if(9.8 < time && time < 10.7) {
+      //turnTo
+      shooter.set(0);
+      armSetpoint = 0;
+      armControl(armSetpoint);
+      ChassisSpeeds cs4 = new ChassisSpeeds(0,0,turnTo(270));
+      swerveDrive.driveFieldOriented(cs4);
+    }
+    else if(10.7 < time && time < 11.9) {
+      //mmmmm note
+      shooter.set(0);
+      feeder.set(0.7);
+      intake.set(0.7);
+      intake2.set(-0.7);
+
+      if (Math.abs(ll_f_x) >= 0.1) {
+        lll_csX = 0.01 * ll_f_x;
+      }
+      if (ll_f_y >= -40) {
+        lll_csY = -0.5;
+      }
+      ChassisSpeeds lll = new ChassisSpeeds(lll_csX, (-lll_csY * 1.6), 0);
+      SmartDashboard.putNumber("lll_csX", lll_csX);
+      SmartDashboard.putNumber("lll_csY", lll_csY);
+      swerveDrive.drive(lll); 
+    }
+    else if(11.9 < time && time < 12.1) {
+      //extra intake time
+      intake.set(0.7);
+      intake2.set(-0.7);
+      swerveDrive.drive(zeroSpeed);
+    }
+    else if(12.1 < time && time < 12.7) {
+      //drive right and start turnTo(0)
+      //drive left and turnTo
+      ChassisSpeeds cs2 = new ChassisSpeeds(1.3, 0, turnTo(315));
+      swerveDrive.driveFieldOriented(cs2);
+    }
+    else if(12.7 < time && time < 13.2) {
+      //finish turnTo(0)
+      //continue turnTo
+      ChassisSpeeds cs3 = new ChassisSpeeds(0, 0, turnTo(315));
+      swerveDrive.driveFieldOriented(cs3);
+    }
+    else if(13.2 < time && time < 13.7) {
+      //align
+      armSetpoint = limelight_arm_aim_proportional();
+      armControl(armSetpoint);
+
+      double robotRotation = limelight_robot_rotation_aim_proportional();
+      System.out.println(robotRotation);
+      ChassisSpeeds llFront = new ChassisSpeeds(0, 0, robotRotation);
+
+
+      swerveDrive.drive(llFront);  
+      
+      intake.set(0);
+      intake2.set(0);
+      feeder.set(0);
+      shooter.set(0);
+    }
+    else {
+      //shoot MAKE THE SHOT FINISH
+
+      arm_left.set(0.037);
+      arm_right.set(-0.037);
+      swerveDrive.drive(zeroSpeed);
+      autoShoot();
+    }
+    
+    /* 
+    else {
+      shooter.set(0);
+      feeder.set(0);
+      intake.set(0);
+      intake2.set(0);
+      swerveDrive.drive(zeroSpeed);
+    }
+    */
+    
+     
+    /* 
+>>>>>>> Stashed changes
     if(0 < autoTimer.get() && autoTimer.get() < 1.3) {
       teleShoot();
     }
@@ -694,7 +966,102 @@ public class Robot extends TimedRobot {
     if(12.6 < autoTimer.get() && autoTimer.get() < 13.1) {
       //rotate and move right
     }
+<<<<<<< Updated upstream
     if(13.1 < autoTimer.get() && autoTimer.get() < 13.6)
+=======
+    if(13.1 < autoTimer.get() && autoTimer.get() < 13.6) {
+
+    }
+    */
+//auto V2 shooting from center -- TUNED FOR 12.7 - 12.8V
+    
+    
+    /* 
+    else {
+      shooter.set(0);
+      feeder.set(0);
+      intake.set(0);
+      intake2.set(0);
+      swerveDrive.drive(zeroSpeed);
+    }
+    */
+    
+     
+    /* 
+    if(0 < autoTimer.get() && autoTimer.get() < 1.3) {
+      teleShoot();
+    }
+    if(1.3 < autoTimer.get() && autoTimer.get() < 2.3) {
+      shooter.set(0);
+      feeder.set(0.5);
+      intake.set(0.5);
+      intake2.set(-0.5);
+
+      if (Math.abs(ll_f_x) >= 0.1) {
+        lll_csX = 0.01 * ll_f_x;
+      if (ll_f_y >= -40) {
+        lll_csY = -0.5;}
+      }
+      ChassisSpeeds lll = new ChassisSpeeds(lll_csX, (-lll_csY * 1.2), lll_csAngle);
+      swerveDrive.drive(lll); 
+    }
+    if(2.3 < autoTimer.get() && autoTimer.get() < 3.4) {
+      //feeder.set(0.2);
+      runningPID = true;
+      autoSpeaker();
+      //align
+
+    }
+    if(3.4 < autoTimer.get() && autoTimer.get() < 4.7) {
+      runningPID = false;
+      swerveDrive.driveFieldOriented(zeroSpeed);
+      teleShoot();
+      //shoot
+    }
+    if(4.7 < autoTimer.get() && autoTimer.get() < 5.2) {
+      swerveDrive.driveFieldOriented(cs_fasterRotateRight);
+    }
+    if(5.2 < autoTimer.get() && autoTimer.get() < 6.8) {
+      if(!hasReached4) {
+        swerveDrive.drive(zeroSpeed);
+        hasReached4 = true;
+      }
+      shooter.set(0);
+      feeder.set(0.5);
+      intake.set(0.5);
+      intake2.set(-0.5);
+
+      if (Math.abs(ll_f_x) >= 0.1) {
+        lll_csX = 0.01 * ll_f_x;
+      if (ll_f_y >= -40) {
+        lll_csY = -0.5;}
+      }
+      ChassisSpeeds lll = new ChassisSpeeds(lll_csX, (-lll_csY * 1.2), lll_csAngle);
+      swerveDrive.drive(lll);
+    }
+    if(8 < autoTimer.get() && autoTimer.get() < 8.5) {
+      //rotate right and move right
+    }
+    if(8.5 < autoTimer.get() && autoTimer.get() < 9.6) {
+      //align
+    }
+    if(9.6 < autoTimer.get() && autoTimer.get() < 10.9) {
+      //shoot
+    }
+    if(10.9 < autoTimer.get() && autoTimer.get() < 11.4) {
+      //rotate left
+    }
+    if(11.4 < autoTimer.get() && autoTimer.get() < 12.6) {
+      //intake and mmmmm ring
+    }
+    if(12.6 < autoTimer.get() && autoTimer.get() < 13.1) {
+      //rotate and move right
+    }
+    if(13.1 < autoTimer.get() && autoTimer.get() < 13.6) {
+
+    }
+
+>>>>>>> Stashed changes
 
     /*Auto Options:
      * 1:Shoot, Drive back Left  *****
@@ -841,6 +1208,582 @@ public class Robot extends TimedRobot {
   }
 
 
+  //changed a few things in code
+    //final shoot code
+    //time before second shot 
+
+  public void fourNoteFromCenterRed(double time, double lll_csX, double lll_csY) {
+    if(0 < autoTimer.get() && autoTimer.get() < 1.3) {
+      //shoot -- don't copy 
+      teleShoot();
+    }
+    else if((1.3 < time) && (time < 2.2)) {
+      //mmmmm note -- copy directly
+      shooter.set(0);
+      feeder.set(0.7);
+      intake.set(0.7);
+      intake2.set(-0.7);
+
+      if (Math.abs(ll_f_x) >= 0.1) {
+        lll_csX = 0.01 * ll_f_x;
+      }
+      if (ll_f_y >= -40) {
+        lll_csY = -0.5;
+      }
+      ChassisSpeeds lll = new ChassisSpeeds(lll_csX, (-lll_csY * 1.2), 0);
+      SmartDashboard.putNumber("lll_csX", lll_csX);
+      SmartDashboard.putNumber("lll_csY", lll_csY);
+      swerveDrive.drive(lll); 
+    }
+    else if(2.2 < time && time < 2.5) {
+      //extra intake time -- copy directly
+      swerveDrive.drive(zeroSpeed);
+    }
+    else if(2.5 < autoTimer.get() && autoTimer.get() < 2.9) {
+     //drive forward
+      ChassisSpeeds csForward = new ChassisSpeeds(0, -1.2, 0);
+      swerveDrive.driveFieldOriented(csForward);
+    }
+    else if(2.9 < time && time < 3.3) {
+      //align -- copy directly
+      armSetpoint = limelight_arm_aim_proportional() - 0.2;
+      armControl(armSetpoint);
+
+      double robotRotation = limelight_robot_rotation_aim_proportional();
+      System.out.println(robotRotation);
+      ChassisSpeeds llFront = new ChassisSpeeds(0, 0, robotRotation);
+
+
+      swerveDrive.drive(llFront);  
+      
+      intake.set(0);
+      intake2.set(0);
+      feeder.set(0);
+      shooter.set(0);
+
+    }
+    else if (3.3 < time && time < 3.4) {
+      swerveDrive.drive(zeroSpeed);
+    }
+    else if(3.4 < time && time < 4.6) {
+      //shoot - copy directly
+      arm_left.set(0.037);
+      arm_right.set(-0.037);
+      autoShoot();
+    }
+    else if(4.6 < time && time < 5.3) {
+      //turnTo
+      armSetpoint = 0;
+      armControl(0);
+      shooter.set(0);
+      ChassisSpeeds cs = new ChassisSpeeds(0,0,turnTo(55));
+      swerveDrive.driveFieldOriented(cs);
+    }
+    else if(5.3 < time && time < 6.5) {
+      //mmmmm note
+      feeder.set(0.7);
+      intake.set(0.7);
+      intake2.set(-0.7);
+
+      if (Math.abs(ll_f_x) >= 0.1) {
+        lll_csX = 0.01 * ll_f_x;
+      }
+      if (ll_f_y >= -40) {
+        lll_csY = -0.5;
+      }
+      ChassisSpeeds lll = new ChassisSpeeds((lll_csX * 1.2), (-lll_csY * 1.2), 0);
+      SmartDashboard.putNumber("lll_csX", lll_csX);
+      SmartDashboard.putNumber("lll_csY", lll_csY);
+      swerveDrive.drive(lll);
+    }
+    else if(6.5 < time && time < 7.3) {
+      //drive back to speaker and turnTo
+      ChassisSpeeds cs2 = new ChassisSpeeds(-1.15, -0.65, turnTo(0));
+      swerveDrive.driveFieldOriented(cs2);
+    }
+    else if(7.3 < autoTimer.get() && autoTimer.get() < 8) {
+      //finish turnTo
+      ChassisSpeeds cs3 = new ChassisSpeeds(0, 0, turnTo(0));
+      swerveDrive.driveFieldOriented(cs3);
+    }
+    else if(8 < autoTimer.get() && autoTimer.get() < 8.4) {
+      //align
+      armSetpoint = limelight_arm_aim_proportional();
+      armControl(armSetpoint);
+
+      double robotRotation = limelight_robot_rotation_aim_proportional();
+      System.out.println(robotRotation);
+      ChassisSpeeds llFront = new ChassisSpeeds(0, 0, robotRotation);
+
+
+      swerveDrive.drive(llFront);  
+      
+      intake.set(0);
+      intake2.set(0);
+      feeder.set(0);
+      shooter.set(0);
+    }
+    else if(8.4 < time && time < 9.7) {
+      //shoot
+      armControl(armSetpoint);
+      swerveDrive.drive(zeroSpeed);
+      autoShoot();
+    }
+    else if(9.7 < time && time < 10.8) {
+      //turnTo
+      shooter.set(0);
+      armSetpoint = 0;
+      armControl(armSetpoint);
+      ChassisSpeeds cs4 = new ChassisSpeeds(0,0,turnTo(315));
+      swerveDrive.driveFieldOriented(cs4);
+    }
+    else if(10.8 < time && time < 12.2) {
+      //mmmmm note
+      shooter.set(0);
+      feeder.set(0.7);
+      intake.set(0.7);
+      intake2.set(-0.7);
+
+      if (Math.abs(ll_f_x) >= 0.1) {
+        lll_csX = 0.01 * ll_f_x;
+      }
+      if (ll_f_y >= -40) {
+        lll_csY = -0.5;
+      }
+      ChassisSpeeds lll = new ChassisSpeeds((lll_csX * 1.15), (-lll_csY * 1.0), 0);
+      SmartDashboard.putNumber("lll_csX", lll_csX);
+      SmartDashboard.putNumber("lll_csY", lll_csY);
+      swerveDrive.drive(lll); 
+    }
+    else if(12.2 < time && time < 12.4) {
+      //extra intake time
+      intake.set(0.7);
+      intake2.set(-0.7);
+      shooter.set(0);
+      swerveDrive.drive(zeroSpeed);
+    }
+    else if(12.4 < time && time < 12.9) {
+      //drive
+      ChassisSpeeds cs5 = new ChassisSpeeds(1.15, 0, turnTo(0));
+      swerveDrive.driveFieldOriented(cs5);
+    }
+    else if(12.9 < time && time < 13.3) {
+      ChassisSpeeds cs6 = new ChassisSpeeds(0, -0.95, turnTo(0));
+      swerveDrive.driveFieldOriented(cs6);
+    }
+    else if(13.3 < time && time < 13.7) {
+      //align
+      armSetpoint = limelight_arm_aim_proportional();
+      armControl(armSetpoint);
+
+      double robotRotation = limelight_robot_rotation_aim_proportional();
+      System.out.println(robotRotation);
+      ChassisSpeeds llFront = new ChassisSpeeds(0, 0, robotRotation);
+
+
+      swerveDrive.drive(llFront);  
+      
+      intake.set(0);
+      intake2.set(0);
+      feeder.set(0);
+      shooter.set(0);
+    }
+    else if (13.7 < time && 13.8 < time) {
+      //shoot MAKE THE SHOT FINISH
+      arm_left.set(0.037);
+      arm_right.set(-0.037);
+      swerveDrive.drive(zeroSpeed);
+    }
+    else if (13.8 < time && 15 < time) {
+      autoShoot();
+    }
+    else  {
+
+    }
+  }
+
+  public void fourNoteFromCenterBlue(double time, double lll_csX, double lll_csY) {
+    if(0 < autoTimer.get() && autoTimer.get() < 1.3) {
+      //shoot -- don't copy 
+      teleShoot();
+    }
+    else if((1.3 < time) && (time < 2.2)) {
+      //mmmmm note -- copy directly
+      shooter.set(0);
+      feeder.set(0.7);
+      intake.set(0.7);
+      intake2.set(-0.7);
+
+      if (Math.abs(ll_f_x) >= 0.1) {
+        lll_csX = 0.01 * ll_f_x;
+      }
+      if (ll_f_y >= -40) {
+        lll_csY = -0.5;
+      }
+      ChassisSpeeds lll = new ChassisSpeeds(lll_csX, (-lll_csY * 1.2), 0);
+      SmartDashboard.putNumber("lll_csX", lll_csX);
+      SmartDashboard.putNumber("lll_csY", lll_csY);
+      swerveDrive.drive(lll); 
+    }
+    else if(2.2 < time && time < 2.5) {
+      //extra intake time -- copy directly
+      swerveDrive.drive(zeroSpeed);
+    }
+    else if(2.5 < autoTimer.get() && autoTimer.get() < 2.9) {
+     //drive forward
+      ChassisSpeeds csForward = new ChassisSpeeds(0, -1.2, 0);
+      swerveDrive.driveFieldOriented(csForward);
+    }
+    else if(2.9 < time && time < 3.3) {
+      //align -- copy directly
+      armSetpoint = limelight_arm_aim_proportional() - 0.2;
+      armControl(armSetpoint);
+
+      double robotRotation = limelight_robot_rotation_aim_proportional();
+      System.out.println(robotRotation);
+      ChassisSpeeds llFront = new ChassisSpeeds(0, 0, robotRotation);
+
+
+      swerveDrive.drive(llFront);  
+      
+      intake.set(0);
+      intake2.set(0);
+      feeder.set(0);
+      shooter.set(0);
+
+    }
+    else if (3.3 < time && time < 3.4) {
+      swerveDrive.drive(zeroSpeed);
+    }
+    else if(3.4 < time && time < 4.6) {
+      //shoot - copy directly
+      arm_left.set(0.037);
+      arm_right.set(-0.037);
+      swerveDrive.drive(zeroSpeed);
+      autoShoot();
+    }
+    else if(4.6 < time && time < 5.3) {
+      //turnTo
+      armSetpoint = 0;
+      armControl(0);
+      shooter.set(0);
+      ChassisSpeeds cs = new ChassisSpeeds(0,0,turnTo(305));
+      swerveDrive.driveFieldOriented(cs);
+    }
+    else if(5.3 < time && time < 6.5) {
+      //mmmmm note
+      feeder.set(0.7);
+      intake.set(0.7);
+      intake2.set(-0.7);
+
+      if (Math.abs(ll_f_x) >= 0.1) {
+        lll_csX = 0.01 * ll_f_x;
+      }
+      if (ll_f_y >= -40) {
+        lll_csY = -0.5;
+      }
+      ChassisSpeeds lll = new ChassisSpeeds((lll_csX * 1.2), (-lll_csY * 1.2), 0);
+      SmartDashboard.putNumber("lll_csX", lll_csX);
+      SmartDashboard.putNumber("lll_csY", lll_csY);
+      swerveDrive.drive(lll);
+    }
+    else if(6.5 < time && time < 7.3) {
+      //drive back to speaker and turnTo
+      ChassisSpeeds cs2 = new ChassisSpeeds(1.15, -0.65, turnTo(0));
+      swerveDrive.driveFieldOriented(cs2);
+    }
+    else if(7.3 < autoTimer.get() && autoTimer.get() < 8) {
+      //finish turnTo
+      ChassisSpeeds cs3 = new ChassisSpeeds(0, 0, turnTo(0));
+      swerveDrive.driveFieldOriented(cs3);
+    }
+    else if(8 < autoTimer.get() && autoTimer.get() < 8.4) {
+      //align
+      armSetpoint = limelight_arm_aim_proportional();
+      armControl(armSetpoint);
+
+      double robotRotation = limelight_robot_rotation_aim_proportional();
+      System.out.println(robotRotation);
+      ChassisSpeeds llFront = new ChassisSpeeds(0, 0, robotRotation);
+
+
+      swerveDrive.drive(llFront);  
+      
+      intake.set(0);
+      intake2.set(0);
+      feeder.set(0);
+      shooter.set(0);
+    }
+    else if(8.4 < time && time < 9.7) {
+      //shoot
+      armControl(armSetpoint);
+      swerveDrive.drive(zeroSpeed);
+      autoShoot();
+    }
+    else if(9.7 < time && time < 10.8) {
+      //turnTo
+      shooter.set(0);
+      armSetpoint = 0;
+      armControl(armSetpoint);
+      ChassisSpeeds cs4 = new ChassisSpeeds(0,0,turnTo(45));
+      swerveDrive.driveFieldOriented(cs4);
+    }
+    else if(10.8 < time && time < 12.2) {
+      //mmmmm note
+      shooter.set(0);
+      feeder.set(0.7);
+      intake.set(0.7);
+      intake2.set(-0.7);
+
+      if (Math.abs(ll_f_x) >= 0.1) {
+        lll_csX = 0.01 * ll_f_x;
+      }
+      if (ll_f_y >= -40) {
+        lll_csY = -0.5;
+      }
+      ChassisSpeeds lll = new ChassisSpeeds((lll_csX * 1.15), (-lll_csY * 1.0), 0);
+      SmartDashboard.putNumber("lll_csX", lll_csX);
+      SmartDashboard.putNumber("lll_csY", lll_csY);
+      swerveDrive.drive(lll); 
+    }
+    else if(12.2 < time && time < 12.4) {
+      //extra intake time
+      // intake.set(0.7);
+      // intake2.set(-0.7);
+      shooter.set(0);
+      swerveDrive.drive(zeroSpeed);
+    }
+    else if(12.4 < time && time < 12.9) {
+      //drive
+      ChassisSpeeds cs5 = new ChassisSpeeds(-1.15, 0, turnTo(0));
+      swerveDrive.driveFieldOriented(cs5);
+    }
+    else if(12.9 < time && time < 13.3) {
+      ChassisSpeeds cs6 = new ChassisSpeeds(0, -0.95, turnTo(0));
+      swerveDrive.driveFieldOriented(cs6);
+    }
+    else if(13.3 < time && time < 13.7) {
+      //align
+      intake.set(0);
+      intake2.set(0);
+      feeder.set(0);
+      shooter.set(0);
+
+      armSetpoint = limelight_arm_aim_proportional();
+      armControl(armSetpoint);
+
+      double robotRotation = limelight_robot_rotation_aim_proportional();
+      System.out.println(robotRotation);
+      ChassisSpeeds llFront = new ChassisSpeeds(0, 0, robotRotation);
+
+
+      swerveDrive.drive(llFront);  
+    }else if (13.7 < time && 13.8 < time) {
+      //shoot MAKE THE SHOT FINISH
+      arm_left.set(0.037);
+      arm_right.set(-0.037);
+      swerveDrive.drive(zeroSpeed);
+    }
+    else if (13.8 < time && 15 < time) {
+      autoShoot();
+    }
+    else  {
+      
+    }
+  }
+
+   public void fourNoteFromCenterRedSpedUp(double time, double lll_csX, double lll_csY) {
+    if(0 < autoTimer.get() && autoTimer.get() < 1.3) {
+      //shoot -- don't copy 
+      teleShoot();
+    }
+    else if((1.3 < time) && (time < 2.2)) {
+      //mmmmm note -- copy directly
+      shooter.set(0);
+      feeder.set(0.7);
+      intake.set(0.7);
+      intake2.set(-0.7);
+
+      if (Math.abs(ll_f_x) >= 0.1) {
+        lll_csX = 0.01 * ll_f_x;
+      }
+      if (ll_f_y >= -40) {
+        lll_csY = -0.5;
+      }
+      ChassisSpeeds lll = new ChassisSpeeds(lll_csX, (-lll_csY * 1.2), 0);
+      SmartDashboard.putNumber("lll_csX", lll_csX);
+      SmartDashboard.putNumber("lll_csY", lll_csY);
+      swerveDrive.drive(lll); 
+    }
+    else if(2.2 < time && time < 2.5) {
+      //extra intake time -- copy directly
+      swerveDrive.drive(zeroSpeed);
+    }
+    else if(2.5 < autoTimer.get() && autoTimer.get() < 2.9) {
+     //drive forward
+      ChassisSpeeds csForward = new ChassisSpeeds(0, -1.2, 0);
+      swerveDrive.driveFieldOriented(csForward);
+    }
+    else if(2.9 < time && time < 3.3) {
+      //align -- copy directly
+      armSetpoint = limelight_arm_aim_proportional() - 0.2;
+      armControl(armSetpoint);
+
+      double robotRotation = limelight_robot_rotation_aim_proportional();
+      System.out.println(robotRotation);
+      ChassisSpeeds llFront = new ChassisSpeeds(0, 0, robotRotation);
+
+
+      swerveDrive.drive(llFront);  
+      
+      intake.set(0);
+      intake2.set(0);
+      feeder.set(0);
+      shooter.set(0);
+
+    }
+    else if (3.3 < time && time < 3.4) {
+      swerveDrive.drive(zeroSpeed);
+    }
+    else if(3.4 < time && time < 4.6) {
+      //shoot - copy directly
+      arm_left.set(0.037);
+      arm_right.set(-0.037);
+      autoShoot();
+    }
+    else if(4.6 < time && time < 5.3) {
+      //turnTo
+      armSetpoint = 0;
+      armControl(0);
+      shooter.set(0);
+      ChassisSpeeds cs = new ChassisSpeeds(0,0,turnTo(55));
+      swerveDrive.driveFieldOriented(cs);
+    }
+    else if(5.3 < time && time < 6.5) {
+      //mmmmm note
+      feeder.set(0.7);
+      intake.set(0.7);
+      intake2.set(-0.7);
+
+      if (Math.abs(ll_f_x) >= 0.1) {
+        lll_csX = 0.01 * ll_f_x;
+      }
+      if (ll_f_y >= -40) {
+        lll_csY = -0.5;
+      }
+      ChassisSpeeds lll = new ChassisSpeeds((lll_csX * 1.2), (-lll_csY * 1.2), 0);
+      SmartDashboard.putNumber("lll_csX", lll_csX);
+      SmartDashboard.putNumber("lll_csY", lll_csY);
+      swerveDrive.drive(lll);
+    }
+    else if(6.5 < time && time < 7.3) {
+      //drive back to speaker and turnTo
+      ChassisSpeeds cs2 = new ChassisSpeeds(-1.15, -0.65, turnTo(0));
+      swerveDrive.driveFieldOriented(cs2);
+    } //took extra time from statement below
+    else if(7.3 < autoTimer.get() && autoTimer.get() < 7.5) {
+      //finish turnTo
+      ChassisSpeeds cs3 = new ChassisSpeeds(0, 0, turnTo(0));
+      swerveDrive.driveFieldOriented(cs3);
+    }
+    else if(7.5 < autoTimer.get() && autoTimer.get() < 7.9) {
+      //align
+      armSetpoint = limelight_arm_aim_proportional();
+      armControl(armSetpoint);
+
+      double robotRotation = limelight_robot_rotation_aim_proportional();
+      System.out.println(robotRotation);
+      ChassisSpeeds llFront = new ChassisSpeeds(0, 0, robotRotation);
+
+
+      swerveDrive.drive(llFront);  
+      
+      intake.set(0);
+      intake2.set(0);
+      feeder.set(0);
+      shooter.set(0);
+    }
+    else if(7.9 < time && time < 9.2) {
+      //shoot
+      armControl(armSetpoint);
+      swerveDrive.drive(zeroSpeed);
+      autoShoot();
+    }
+    else if(9.2 < time && time < 10.3) {
+      //turnTo
+      shooter.set(0);
+      armSetpoint = 0;
+      armControl(armSetpoint);
+      ChassisSpeeds cs4 = new ChassisSpeeds(0,0,turnTo(315));
+      swerveDrive.driveFieldOriented(cs4);
+    }
+    else if(10.3 < time && time < 11.7) {
+      //mmmmm note
+      shooter.set(0);
+      feeder.set(0.7);
+      intake.set(0.7);
+      intake2.set(-0.7);
+
+      if (Math.abs(ll_f_x) >= 0.1) {
+        lll_csX = 0.01 * ll_f_x;
+      }
+      if (ll_f_y >= -40) {
+        lll_csY = -0.5;
+      }
+      ChassisSpeeds lll = new ChassisSpeeds((lll_csX * 1.15), (-lll_csY * 1.0), 0);
+      SmartDashboard.putNumber("lll_csX", lll_csX);
+      SmartDashboard.putNumber("lll_csY", lll_csY);
+      swerveDrive.drive(lll); 
+    }
+    else if(12.2 < time && time < 12.4) {
+      //extra intake time
+      intake.set(0.7);
+      intake2.set(-0.7);
+      shooter.set(0);
+      swerveDrive.drive(zeroSpeed);
+    }
+    else if(11.7 < time && time < 12.4) {
+      //drive
+      ChassisSpeeds cs5 = new ChassisSpeeds(1.15, 0, turnTo(0));
+      swerveDrive.driveFieldOriented(cs5);
+    }
+    else if(12.4 < time && time < 12.8) {
+      ChassisSpeeds cs6 = new ChassisSpeeds(0, -0.95, turnTo(0));
+      swerveDrive.driveFieldOriented(cs6);
+    }
+    else if(12.8 < time && time < 13.2) {
+      //align
+      armSetpoint = limelight_arm_aim_proportional();
+      armControl(armSetpoint);
+
+      double robotRotation = limelight_robot_rotation_aim_proportional();
+      System.out.println(robotRotation);
+      ChassisSpeeds llFront = new ChassisSpeeds(0, 0, robotRotation);
+
+
+      swerveDrive.drive(llFront);  
+      
+      intake.set(0);
+      intake2.set(0);
+      feeder.set(0);
+      shooter.set(0);
+    }
+    else if (13.2 < time && 13.3 < time) {
+      //shoot MAKE THE SHOT FINISH
+      arm_left.set(0.037);
+      arm_right.set(-0.037);
+      swerveDrive.drive(zeroSpeed);
+    }
+    else if (13.3 < time && 15 < time) {
+      autoShoot();
+    }
+    else  {
+
+    }
+  }
+
+
+
 /* 
   public void updateOdometry() {
     m_poseEstimator.update(
@@ -879,6 +1822,9 @@ public class Robot extends TimedRobot {
     b_timer.start();
     shooter.set(0);
     feeder.set(0);
+
+    gyro.zeroYaw();
+    // swerveDrive.
     
   }
 
@@ -886,6 +1832,18 @@ public class Robot extends TimedRobot {
   @Override
   public void teleopPeriodic() {
 
+<<<<<<< Updated upstream
+=======
+    // double org = swerveDrive.getYaw().getDegrees();
+    // double org2 = gyro.getYaw();
+
+    // org = (-org);
+
+    // System.out.println("Direct yaw: " + org);
+    // System.out.println("Indirect yaw: " + org2);
+    //System.out.println("armval: " + leftArmEncoder.getPosition() + ", degrees: " + motorRotationsToDegreesArm(leftArmEncoder.getPosition()));
+
+>>>>>>> Stashed changes
     // System.out.println("encoder " + leftArmEncoder.getPosition());
    
     NetworkTable table_b = NetworkTableInstance.getDefault().getTable("limelight-back");
@@ -978,14 +1936,20 @@ public class Robot extends TimedRobot {
       csAngle = controller.getRightX() * maxSpeedAngle;
     }
 
+    //Pick a button for this 
+  /* if (controller.get()) {
+      turnTo(90);
+    } */
+
     /*if ((controller2.getRightTriggerAxis() > 0.3) || controller.getAButton()) {
       autoShoot();
       //I would like to have autoshoot be our only shooting command, but it isnt wokring right now
     }*/ //I think the feeder is being turned off somewhere in the main loop
 
-    //To manually shoot with two buttons
      if ((controller2.getRightTriggerAxis() > 0.3)) {
-      feeder.set(.5);
+      armSetpoint = 3;
+      //armControl(armSetpoint);
+      //feeder.set(.5);
       //I would like to have autoshoot be our only shooting command, but it isnt wokring right now
     }
      
@@ -1004,6 +1968,7 @@ public class Robot extends TimedRobot {
 
     if(controller2.getRightStickButton()) {
       teleShoot();
+      System.out.println("right stick down");
     }
     
     if(!controller2.getRightBumper() && !controller.getAButton() && !controller2.getRightStickButton()) {
@@ -1036,7 +2001,7 @@ public class Robot extends TimedRobot {
       armSetpoint = limelight_arm_aim_proportional();
       armControl(armSetpoint);
       // System.out.println("enc: " + leftArmEncoder.getPosition());
-      System.out.println("encoder: " + leftArmEncoder.getPosition() + "degrees: " + motorRotationsToDegreesArm(leftArmEncoder.getPosition()) + "setpoint degrees: ");
+      // System.out.println("encoder: " + leftArmEncoder.getPosition() + "degrees: " + motorRotationsToDegreesArm(leftArmEncoder.getPosition()) + "setpoint degrees: ");
 
 
       double robotRotation = limelight_robot_rotation_aim_proportional();
@@ -1085,23 +2050,21 @@ public class Robot extends TimedRobot {
 
 
     if (controller2.getYButton()) {
-      armPresetRunning = false;
-      arm_left.set(0.1);
-      arm_right.set(-0.1);
-      armSetpoint = leftArmEncoder.getPosition();
+        armPresetRunning = false;
+        arm_left.set(0.1);
+        arm_right.set(-0.1);
+        armSetpoint = leftArmEncoder.getPosition();
     } else if (controller2.getBButton()) {
-      armPresetRunning = false;
-      arm_left.set(-0.1);
-      arm_right.set(0.1);
-      armSetpoint = leftArmEncoder.getPosition();
+        armPresetRunning = false;
+        arm_left.set(-0.1);
+        arm_right.set(0.1);
+        armSetpoint = leftArmEncoder.getPosition();
     }else {
       armControl(armSetpoint);
     }
 
    //reverse intake
    
-
-
     if (controller2.getLeftTriggerAxis() > .3){
       intake.set(-.1);
       intake2.set(.1);
@@ -1151,12 +2114,27 @@ public class Robot extends TimedRobot {
   @Override
   public void testInit() {
     // Cancels all running commands at the start of test mode.
+<<<<<<< Updated upstream
     CommandScheduler.getInstance().cancelAll();
+=======
+    
+>>>>>>> Stashed changes
   }
 
   /** This function is called periodically during test mode. */
   @Override
+<<<<<<< Updated upstream
   public void testPeriodic() {}
+=======
+  public void testPeriodic() {
+    /*ChassisSpeeds cs = new ChassisSpeeds(0,0,turnTo(180));
+    swerveDrive.driveFieldOriented(cs);
+    System.out.println(swerveDrive.getYaw());*/
+
+      ChassisSpeeds csForward = new ChassisSpeeds(0, 0, turnTo(305));
+      swerveDrive.driveFieldOriented(csForward);
+  }
+>>>>>>> Stashed changes
 
   /** This function is called once when the robot is first started up. */
   @Override
